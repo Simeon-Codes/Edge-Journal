@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: edge-journal-pocketbase
+    runtime: docker
+    dockerfilePath: ./pocketbase/Dockerfile
+    plan: free
+    envVars:
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+    disk:
+      name: pb-data
+      mountPath: /pb/pb_data
+      sizeGB: 1
