@@ -1,10 +1,18 @@
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
-RUN apk add --no-cache curl unzip ca-certificates
+RUN apt-get update && \
+    apt-get install -y \
+    unzip \
+    wget \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /pb
 
-RUN curl -L -o pb.zip https://github.com/pocketbase/pocketbase/releases/download/v0.22.4/pocketbase_0.22.4_linux_amd64.zip
+RUN wget -O pb.zip https://github.com/pocketbase/pocketbase/releases/download/v0.22.4/pocketbase_0.22.4_linux_amd64.zip && \
+    unzip pb.zip && \
+    rm pb.zip && \
+    chmod +x pocketbase
 
 COPY pb_migrations/ /pb/pb_migrations/
 COPY pb_hooks/ /pb/pb_hooks/
