@@ -1,19 +1,10 @@
 FROM alpine:3.19
 
-RUN apk update && apk upgrade && \
-    apk add --no-cache \
-    unzip \
-    ca-certificates \
-    wget && \
-    update-ca-certificates
+RUN apk add --no-cache curl unzip ca-certificates
 
 WORKDIR /pb
 
-RUN wget -q https://github.com/pocketbase/pocketbase/releases/download/v0.22.4/pocketbase_0.22.4_linux_amd64.zip && \
-    unzip pocketbase_0.22.4_linux_amd64.zip && \
-    rm pocketbase_0.22.4_linux_amd64.zip && \
-    mv pocketbase /pb/pocketbase && \
-    chmod +x /pb/pocketbase
+RUN curl -L -o pb.zip https://github.com/pocketbase/pocketbase/releases/download/v0.22.4/pocketbase_0.22.4_linux_amd64.zip
 
 COPY pb_migrations/ /pb/pb_migrations/
 COPY pb_hooks/ /pb/pb_hooks/
