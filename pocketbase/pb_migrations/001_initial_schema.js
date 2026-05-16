@@ -9,7 +9,7 @@
  *   Using `new Collection({...})` in a migration causes PocketBase to query
  *   _collections at object-construction time, before the DAO has initialised
  *   that table.  The correct v0.22 pattern is to pass a plain JS object literal
- *   directly to db.saveCollection().  No `new Collection()` anywhere.
+ *   directly to $app.dao().saveCollection().  No `new Collection()` anywhere.
  *
  * Collections (FK-dependency order):
  *   1. profiles         – 1-to-1 extension of built-in users auth
@@ -107,7 +107,7 @@ migrate(function(db) {
   // ── 1. PROFILES ─────────────────────────────────────────────────────────────
   // One row per auth user.  Tier 0 = free/trial; 1–5 = paid tiers.
   // Subscription state here lets the app gate features without a Stripe round-trip.
-  db.saveCollection({
+  $app.dao().saveCollection({
     id:     ID.PROFILES,
     name:   "profiles",
     type:   "base",
@@ -151,7 +151,7 @@ migrate(function(db) {
   // ── 2. MT5 ACCOUNTS ─────────────────────────────────────────────────────────
   // A user can connect multiple MT5 logins (e.g. live + demo).
   // api_key_hash = HMAC-SHA256 of the EA's secret — never stored raw.
-  db.saveCollection({
+  $app.dao().saveCollection({
     id:   ID.MT5_ACCOUNTS,
     name: "mt5_accounts",
     type: "base",
@@ -187,7 +187,7 @@ migrate(function(db) {
   //
   // Investor token path: unauthenticated viewRule — token is validated inside
   // a pb_hooks onRecordListRequest handler; PocketBase enforces the rule gate.
-  db.saveCollection({
+  $app.dao().saveCollection({
     id:   ID.TRADES,
     name: "trades",
     type: "base",
@@ -254,7 +254,7 @@ migrate(function(db) {
 
   // ── 4. JOURNAL ENTRIES ──────────────────────────────────────────────────────
   // (user, entry_date) uniqueness enforced by a pb_hooks beforeCreate handler.
-  db.saveCollection({
+  $app.dao().saveCollection({
     id:   ID.JOURNAL,
     name: "journal_entries",
     type: "base",
@@ -278,7 +278,7 @@ migrate(function(db) {
   // ── 5. INVESTOR LINKS ───────────────────────────────────────────────────────
   // token: cryptographically random, URL-safe string generated server-side.
   // View counters updated via pb_hook, not by the browser client.
-  db.saveCollection({
+  $app.dao().saveCollection({
     id:   ID.INV_LINKS,
     name: "investor_links",
     type: "base",
@@ -307,7 +307,7 @@ migrate(function(db) {
 
   // ── 6. USAGE LOGS ───────────────────────────────────────────────────────────
   // Written by server-side cron/hook only.  Billing records — never deleted.
-  db.saveCollection({
+  $app.dao().saveCollection({
     id:   ID.USAGE_LOGS,
     name: "usage_logs",
     type: "base",
@@ -330,7 +330,7 @@ migrate(function(db) {
   // ── 7. SYNC LOGS ────────────────────────────────────────────────────────────
   // createRule "" = server/EA hook only.  No browser client can POST.
   // All read rules null = internal audit; never exposed via the API.
-  db.saveCollection({
+  $app.dao().saveCollection({
     id:   ID.SYNC_LOGS,
     name: "sync_logs",
     type: "base",
@@ -376,8 +376,8 @@ migrate(function(db) {
 
   for (var i = 0; i < names.length; i++) {
     try {
-      var col = db.findCollectionByNameOrId(names[i]);
-      db.deleteCollection(col);
+      var col = $app.dao().findCollectionByNameOrId(names[i]);
+      $app.dao().deleteCollection(col);
     } catch (e) {
       // Safe to skip — collection may not exist if migration was partial
       console.warn("[rollback] skipping \"" + names[i] + "\":", e.message || String(e));
