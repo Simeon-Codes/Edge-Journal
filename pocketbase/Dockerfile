@@ -1,6 +1,6 @@
 FROM alpine:3.19
 
-ARG PB_VERSION=0.22.4
+ARG PB_VERSION=0.28.2
 
 RUN apk add --no-cache unzip ca-certificates wget
 
