@@ -9,7 +9,7 @@
  *   Using `new Collection({...})` in a migration causes PocketBase to query
  *   _collections at object-construction time, before the DAO has initialised
  *   that table.  The correct v0.22 pattern is to pass a plain JS object literal
- *   directly to $app.dao().saveCollection().  No `new Collection()` anywhere.
+ *   directly to new Dao(db).saveCollection().  No `new Collection()` anywhere.
  *
  * Collections (FK-dependency order):
  *   1. profiles         – 1-to-1 extension of built-in users auth
@@ -39,17 +39,19 @@
 // Field-builder helpers  (return plain objects — no PB class constructors)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Relation field.  Uses collectionName for built-in "users"; collectionId otherwise. */
-function rel(name, collectionRef, opts) {
+/** Relation field. Always uses collectionId — required by PocketBase v0.22 migration runtime. */
+function rel(name, collectionId, opts) {
   opts = opts || {};
-  var byName = collectionRef === "users";
-  var relOpts = {
-    cascadeDelete: opts.cascadeDelete !== false,
-    maxSelect:     opts.maxSelect || 1,
+  return {
+    name: name,
+    type: "relation",
+    required: opts.required !== false,
+    options: {
+      collectionId:  collectionId,
+      cascadeDelete: opts.cascadeDelete !== false,
+      maxSelect:     opts.maxSelect || 1,
+    },
   };
-  if (byName) { relOpts.collectionName = collectionRef; }
-  else        { relOpts.collectionId   = collectionRef; }
-  return { name: name, type: "relation", required: opts.required !== false, options: relOpts };
 }
 
 function txt(name, maxLen, opts) {
@@ -107,13 +109,13 @@ migrate(function(db) {
   // ── 1. PROFILES ─────────────────────────────────────────────────────────────
   // One row per auth user.  Tier 0 = free/trial; 1–5 = paid tiers.
   // Subscription state here lets the app gate features without a Stripe round-trip.
-  $app.dao().saveCollection({
+  new Dao(db).saveCollection({
     id:     ID.PROFILES,
     name:   "profiles",
     type:   "base",
     system: false,
     schema: [
-      rel("user", "users", { required: true, cascadeDelete: true }),
+      rel("user", "_pb_users_auth_", { required: true, cascadeDelete: true }),
 
       // Identity
       txt("display_name", 60,  { required: true }),
@@ -151,12 +153,12 @@ migrate(function(db) {
   // ── 2. MT5 ACCOUNTS ─────────────────────────────────────────────────────────
   // A user can connect multiple MT5 logins (e.g. live + demo).
   // api_key_hash = HMAC-SHA256 of the EA's secret — never stored raw.
-  $app.dao().saveCollection({
+  new Dao(db).saveCollection({
     id:   ID.MT5_ACCOUNTS,
     name: "mt5_accounts",
     type: "base",
     schema: [
-      rel("user", "users", { required: true, cascadeDelete: true }),
+      rel("user", "_pb_users_auth_", { required: true, cascadeDelete: true }),
 
       txt("account_label", 60,  { required: true }),
       txt("mt5_login",     30,  { required: true }),  // stored as string, not int
@@ -187,12 +189,12 @@ migrate(function(db) {
   //
   // Investor token path: unauthenticated viewRule — token is validated inside
   // a pb_hooks onRecordListRequest handler; PocketBase enforces the rule gate.
-  $app.dao().saveCollection({
+  new Dao(db).saveCollection({
     id:   ID.TRADES,
     name: "trades",
     type: "base",
     schema: [
-      rel("user",        "users",         { required: true,  cascadeDelete: true  }),
+      rel("user",        "_pb_users_auth_",         { required: true,  cascadeDelete: true  }),
       rel("mt5_account", ID.MT5_ACCOUNTS, { required: false, cascadeDelete: false }),
 
       // MT5 provenance
@@ -254,12 +256,12 @@ migrate(function(db) {
 
   // ── 4. JOURNAL ENTRIES ──────────────────────────────────────────────────────
   // (user, entry_date) uniqueness enforced by a pb_hooks beforeCreate handler.
-  $app.dao().saveCollection({
+  new Dao(db).saveCollection({
     id:   ID.JOURNAL,
     name: "journal_entries",
     type: "base",
     schema: [
-      rel("user", "users", { required: true, cascadeDelete: true }),
+      rel("user", "_pb_users_auth_", { required: true, cascadeDelete: true }),
 
       date("entry_date", true),
       txt("title",   120),
@@ -278,12 +280,12 @@ migrate(function(db) {
   // ── 5. INVESTOR LINKS ───────────────────────────────────────────────────────
   // token: cryptographically random, URL-safe string generated server-side.
   // View counters updated via pb_hook, not by the browser client.
-  $app.dao().saveCollection({
+  new Dao(db).saveCollection({
     id:   ID.INV_LINKS,
     name: "investor_links",
     type: "base",
     schema: [
-      rel("user", "users", { required: true, cascadeDelete: true }),
+      rel("user", "_pb_users_auth_", { required: true, cascadeDelete: true }),
 
       txt("token", 128, { required: true }),
       txt("label",  60),
@@ -307,12 +309,12 @@ migrate(function(db) {
 
   // ── 6. USAGE LOGS ───────────────────────────────────────────────────────────
   // Written by server-side cron/hook only.  Billing records — never deleted.
-  $app.dao().saveCollection({
+  new Dao(db).saveCollection({
     id:   ID.USAGE_LOGS,
     name: "usage_logs",
     type: "base",
     schema: [
-      rel("user", "users", { required: true, cascadeDelete: true }),
+      rel("user", "_pb_users_auth_", { required: true, cascadeDelete: true }),
 
       date("log_date", true),
       num("trades_count",  { required: true, min: 0 }),
@@ -330,7 +332,7 @@ migrate(function(db) {
   // ── 7. SYNC LOGS ────────────────────────────────────────────────────────────
   // createRule "" = server/EA hook only.  No browser client can POST.
   // All read rules null = internal audit; never exposed via the API.
-  $app.dao().saveCollection({
+  new Dao(db).saveCollection({
     id:   ID.SYNC_LOGS,
     name: "sync_logs",
     type: "base",
@@ -376,8 +378,8 @@ migrate(function(db) {
 
   for (var i = 0; i < names.length; i++) {
     try {
-      var col = $app.dao().findCollectionByNameOrId(names[i]);
-      $app.dao().deleteCollection(col);
+      var col = new Dao(db).findCollectionByNameOrId(names[i]);
+      new Dao(db).deleteCollection(col);
     } catch (e) {
       // Safe to skip — collection may not exist if migration was partial
       console.warn("[rollback] skipping \"" + names[i] + "\":", e.message || String(e));
