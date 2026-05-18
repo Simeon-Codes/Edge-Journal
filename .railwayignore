@@ -1,0 +1,8 @@
+node_modules/
+dist/
+src/
+public/
+mt5-ea/
+.env
+*.zip
+*.md
