@@ -237,4 +237,4 @@ For Netlify, add a `_redirects` file in `dist/`:
 
 The Flutter app (Windows .exe + Android .apk) will use this same PocketBase backend.
 Same auth, same data, same API — native shell, SQLite local cache, offline-first.
-in two weeks 
+In two weeks.
