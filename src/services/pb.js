@@ -1,6 +1,6 @@
 // services/pb.js — PocketBase client with security hardening
 
-const PB_URL = import.meta.env.VITE_PB_URL || 'http://127.0.0.1:8090';
+const PB_URL = import.meta.env.VITE_PB_URL;
 
 // ── Token storage (memory-first, sessionStorage fallback) ─────────────────────
 let _token = null;
