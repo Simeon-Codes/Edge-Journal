@@ -284,18 +284,14 @@ routerAdd("POST", "/api/ai-coach", (c) => {
     return c.json(429, { error: "Rate limit reached — max 10 analyses per hour." });
   }
 
-  // Authenticate the request — require a valid user JWT
-  const authHeader = c.request().header.get("Authorization") || "";
-  if (!authHeader) return c.json(401, { error: "Authentication required" });
-
+  // Authenticate — PocketBase hooks populate authRecord from the Authorization header automatically
   let userId;
   try {
-    // PocketBase validates the token and returns the auth record
-    const authData = $apis.requestInfo(c).authRecord;
-    if (!authData) return c.json(401, { error: "Invalid token" });
-    userId = authData.id;
+    const authRecord = $apis.requestInfo(c).authRecord;
+    if (!authRecord || !authRecord.id) return c.json(401, { error: 'Authentication required' });
+    userId = authRecord.id;
   } catch(e) {
-    return c.json(401, { error: "Invalid token" });
+    return c.json(401, { error: 'Authentication required' });
   }
 
   // Check tier — must be Pro (2) or above
@@ -723,3 +719,25 @@ Respond in the following JSON structure only — no markdown, no preamble:
 
   return c.json(200, { analysis, parsed: true });
 });
+
+// ── MT5 account — hash api_key_plain before saving ───────────────────────────
+// The frontend sends api_key_plain (the raw token the user pastes into MT5 EA).
+// This hook SHA-256 hashes it server-side, stores the hash, and clears the plain text.
+// The MT5 EA sends the plain key in its requests; the hook verifies by hashing it.
+onRecordBeforeCreateRequest((e) => {
+  if (e.record.collection().name !== "mt5_accounts") return;
+
+  const plain = e.record.get("api_key_plain");
+  if (!plain || String(plain).length < 10) return;
+
+  try {
+    // $security.pbkdf2 is available in PocketBase hooks for hashing
+    const hash = $security.pbkdf2(plain, "edge_journal_salt", 10000, 32, "sha256");
+    e.record.set("api_key_hash", hash);
+    // Remove the plain text so it is never stored in the database
+    e.record.set("api_key_plain", "");
+  } catch(e) {
+    // If hashing fails, block the creation — do not store a plain-text key
+    throw new Error("Failed to hash API key — record not created");
+  }
+}, "mt5_accounts");

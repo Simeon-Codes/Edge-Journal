@@ -23,7 +23,7 @@
 
 import PocketBase from 'pocketbase';
 
-import { PB_URL } from '../config/env';
+const PB_URL = import.meta.env.VITE_PB_URL;
 
 if (!PB_URL) {
   throw new Error(
@@ -68,7 +68,7 @@ function generateSecureToken(len = 32) {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const Auth = {
   async register({ email, password, passwordConfirm, displayName }) {
-    // Client-side validation — gives instant feedback before any network call
+    // ── Client-side validation — instant feedback before any network call ────────
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       throw new Error('Invalid email address');
     if (!password || password.length < 8)
@@ -78,6 +78,7 @@ export const Auth = {
     if (!displayName || displayName.trim().length < 2)
       throw new Error('Display name must be at least 2 characters');
 
+    // ── Step 1: Create the user record ───────────────────────────────────────────
     await pb.collection('users').create({
       email:           sanitise(email, 200).toLowerCase(),
       password,
@@ -85,8 +86,48 @@ export const Auth = {
       name:            sanitise(displayName, 60),
     });
 
-    // Auto-login after registration — same flow as before
-    return this.login({ email, password });
+    // ── Step 2: Authenticate immediately ────────────────────────────────────────
+    const authData = await this.login({ email, password });
+
+    // ── Step 3: Guarantee the profile record exists ──────────────────────────────
+    // The server-side hook (pb_hooks/hooks.js onRecordAfterCreateRequest) creates
+    // the profile automatically. However two failure modes exist:
+    //   a) Race condition — the frontend calls getMine() before the hook completes.
+    //   b) Hook silently fails — collection schema mismatch, hook error, etc.
+    //
+    // Strategy: wait 1.5s for the hook, then check. If the profile still does not
+    // exist, create it client-side as a guaranteed fallback. This makes registration
+    // deterministic regardless of backend hook timing or failure.
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    try {
+      const existing = await Profiles.getMine();
+
+      if (!existing) {
+        // Hook did not fire or lost the race — create the profile ourselves.
+        // Fields match exactly what pb_hooks/hooks.js sets so the app behaves
+        // identically whether the hook created the record or we did.
+        await pb.collection('profiles').create({
+          user:                  pb.authStore.model.id,
+          display_name:          sanitise(displayName, 60),
+          tier:                  0,
+          subscription_status:   'trial',
+          trial_ends_at:         new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          investor_link_enabled: false,
+          theme:                 'system',
+          sidebar_collapsed:     false,
+          ads_enabled:           true,
+          default_lot_size:      0.01,
+          default_currency:      'USD',
+        });
+      }
+    } catch (profileErr) {
+      // Profile check/creation failed — do not block the user.
+      // AuthContext.loadProfile() retries on next render.
+      console.error('[EDGE] Profile guarantee failed after registration:', profileErr);
+    }
+
+    return authData;
   },
 
   async login({ email, password }) {
@@ -128,10 +169,21 @@ export const Profiles = {
     const user = pb.authStore.model;
     if (!user) throw new Error('Not authenticated');
 
-    const res = await pb.collection('profiles').getList(1, 1, {
-      filter: `user="${user.id}"`,
-    });
-    return res.items[0] || null;
+    const query = async () => {
+      const res = await pb.collection('profiles').getList(1, 1, {
+        filter: `user="${user.id}"`,
+      });
+      return res.items[0] || null;
+    };
+
+    // First attempt
+    const profile = await query();
+    if (profile) return profile;
+
+    // If nothing came back — could be a hook race on a fresh registration.
+    // Wait 2 seconds and try once more before returning null.
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return query();
   },
 
   async update(profileId, updates) {

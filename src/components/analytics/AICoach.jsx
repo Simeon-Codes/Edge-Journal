@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
-import { PB_URL } from '../../config/env';
+const PB_URL = import.meta.env.VITE_PB_URL;
 
 // ── Helper: format a stat value for display ───────────────────────────────────
 function StatPill({ label, value, color, t }) {
@@ -200,7 +200,10 @@ export default function AICoach({ trades }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? token : '',
+          // PocketBase pb_hooks read the Authorization header directly.
+          // The SDK stores the token as a raw JWT string (no "Bearer " prefix needed
+          // for PocketBase's own auth middleware, but hooks.js reads it raw).
+          'Authorization': token || '',
         },
         body: JSON.stringify({ stats }),
       });
