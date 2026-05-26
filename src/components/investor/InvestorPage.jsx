@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GRADE_COLORS, SESSION_COLORS } from '../../utils/constants.js';
 
-const PB_URL = import.meta.env.VITE_PB_URL || 'http://127.0.0.1:8090';
+import { PB_URL } from '../../config/env';
 
 const pnlColor = (v) => Number(v) > 0 ? '#00e5a0' : Number(v) < 0 ? '#ff4d6d' : '#8a8fa8';
 

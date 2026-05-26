@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 
-const PB_URL = import.meta.env.VITE_PB_URL;
+import { PB_URL } from '../../config/env';
 
 // ── Helper: format a stat value for display ───────────────────────────────────
 function StatPill({ label, value, color, t }) {
