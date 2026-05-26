@@ -1,0 +1,15 @@
+diff a/src/contexts/AuthContext.jsx b/src/contexts/AuthContext.jsx	(rejected hunks)
+@@ -75,9 +84,11 @@ export const AuthProvider = ({ children }) => {
+       user, profile, loading,
+       login, register, logout,
+       updateProfile, refreshProfile,
+-      isLoggedIn: !!user,
+-      tier: profile?.tier ?? 0,
++      isLoggedIn:         !!user,
++      tier:               profile?.tier ?? 0,
+       subscriptionStatus: profile?.subscription_status ?? 'trial',
++      // Raw JWT token — consumed by AICoach for the /api/ai-coach Authorization header
++      token: pb.authStore.token || null,
+     }}>
+       {children}
+     </AuthContext.Provider>

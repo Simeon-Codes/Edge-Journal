@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Auth, Profiles } from '../services/pb.js';
+import { pb, Auth, Profiles } from '../services/pb.js';
 
 const AuthContext = createContext(null);
 
@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async (authModel) => {
+  const loadProfile = useCallback(async () => {
     try {
       const p = await Profiles.getMine();
       setProfile(p);
@@ -17,14 +17,13 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Restore session on mount
   useEffect(() => {
+    // Restore session from SDK authStore (survives page refresh via localStorage)
     const restore = async () => {
       try {
-        if (Auth.isLoggedIn()) {
-          const model = Auth.getModel();
-          setUser(model);
-          await loadProfile(model);
+        if (pb.authStore.isValid) {
+          setUser(pb.authStore.model);
+          await loadProfile();
         }
       } finally {
         setLoading(false);
@@ -32,30 +31,40 @@ export const AuthProvider = ({ children }) => {
     };
     restore();
 
-    // Listen for forced logout (token expired)
-    const handler = () => { setUser(null); setProfile(null); };
-    window.addEventListener('pb:logout', handler);
-    return () => window.removeEventListener('pb:logout', handler);
+    // SDK authStore.onChange fires on login, logout, and token refresh.
+    // This replaces the manual 'pb:logout' event and scheduleTokenRefresh timer.
+    const unsub = pb.authStore.onChange((token, model) => {
+      if (token && model) {
+        setUser(model);
+        // Profile may have changed (e.g. tier upgrade) — reload it
+        loadProfile();
+      } else {
+        // Cleared — user logged out or token expired
+        setUser(null);
+        setProfile(null);
+      }
+    });
+
+    return () => unsub();
   }, [loadProfile]);
 
   const login = useCallback(async (credentials) => {
     const data = await Auth.login(credentials);
-    setUser(data.record);
-    await loadProfile(data.record);
+    // authStore.onChange fires automatically — no manual setUser needed
+    // but we still await loadProfile for immediate render
+    await loadProfile();
     return data;
   }, [loadProfile]);
 
   const register = useCallback(async (fields) => {
     const data = await Auth.register(fields);
-    setUser(data.record);
-    await loadProfile(data.record);
+    await loadProfile();
     return data;
   }, [loadProfile]);
 
   const logout = useCallback(() => {
     Auth.logout();
-    setUser(null);
-    setProfile(null);
+    // authStore.onChange will fire and clear user/profile state
   }, []);
 
   const updateProfile = useCallback(async (updates) => {
@@ -67,7 +76,7 @@ export const AuthProvider = ({ children }) => {
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    await loadProfile(user);
+    await loadProfile();
   }, [user, loadProfile]);
 
   return (

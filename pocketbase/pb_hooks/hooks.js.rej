@@ -1,0 +1,395 @@
+diff a/pocketbase/pb_hooks/hooks.js b/pocketbase/pb_hooks/hooks.js	(rejected hunks)
+@@ -272,7 +272,156 @@ routerAdd("GET", "/api/investor/:token", (c) => {
+   }
+ });
+ 
+-// ── Stripe webhook ────────────────────────────────────────────────────────────
++// ── AI Performance Coach ──────────────────────────────────────────────────────
++// Receives aggregated stats from the frontend, calls the Anthropic Claude API
++// server-side, and returns a structured written performance evaluation.
++// Requires ANTHROPIC_API_KEY in Railway environment variables.
++// Gated behind tier >= 2 (Pro and above).
++routerAdd("POST", "/api/ai-coach", (c) => {
++  // Rate limit: 10 analyses per user per hour (each costs ~$0.003)
++  const ip = c.realIP();
++  if (rateLimit("ai-coach:" + ip, 10, 3600000)) {
++    return c.json(429, { error: "Rate limit reached — max 10 analyses per hour." });
++  }
++
++  // Authenticate — PocketBase hooks populate authRecord from the Authorization header automatically
++  let userId;
++  try {
++    const authRecord = $apis.requestInfo(c).authRecord;
++    if (!authRecord || !authRecord.id) return c.json(401, { error: 'Authentication required' });
++    userId = authRecord.id;
++  } catch(e) {
++    return c.json(401, { error: 'Authentication required' });
++  }
++
++  // Check tier — must be Pro (2) or above
++  let tier = 0;
++  try {
++    const profiles = $app.dao().findRecordsByFilter("profiles","user = {:uid}",{uid:userId},1,0);
++    if (profiles && profiles.length) tier = Number(profiles[0].get("tier")) || 0;
++  } catch(e) {}
++
++  if (tier < 2) {
++    return c.json(403, { error: "AI Coach is available on Pro ($19/mo) and above. Upgrade in Settings → Billing." });
++  }
++
++  // Parse the stats payload from the frontend
++  let payload;
++  try {
++    payload = $apis.requestInfo(c).data;
++    if (!payload || !payload.stats) return c.json(400, { error: "Missing stats payload" });
++  } catch(e) {
++    return c.json(400, { error: "Invalid payload" });
++  }
++
++  const stats = payload.stats;
++
++  // Build the analysis prompt — structured for a focused, actionable evaluation
++  const prompt = `You are an expert ICT trading coach and performance analyst. Analyze the following trading statistics and provide a detailed, honest, and actionable performance evaluation.
++
++TRADING STATISTICS (Last ${stats.period_days} days):
++- Total trades: ${stats.total_trades} (${stats.closed_trades} closed)
++- Win rate: ${stats.win_rate}
++- Total P&L: $${stats.total_pnl}
++- Profit factor: ${stats.profit_factor}
++- Average R:R on winners: ${stats.average_rr}R
++- Gross profit: $${stats.gross_profit} | Gross loss: $${stats.gross_loss}
++- Plan adherence: ${stats.plan_adherence}
++- Common mistakes logged: ${stats.common_mistakes}
++
++SESSION PERFORMANCE:
++${JSON.stringify(stats.session_performance, null, 2)}
++
++TOP SETUPS BY TRADE COUNT:
++${JSON.stringify(stats.top_setups, null, 2)}
++
++EMOTION vs P&L BREAKDOWN:
++${JSON.stringify(stats.emotion_pnl, null, 2)}
++
++GRADE DISTRIBUTION:
++${JSON.stringify(stats.grade_distribution, null, 2)}
++
++Provide a structured evaluation covering exactly these sections:
++
++## Overall Performance Summary
++A concise assessment of the trader's current performance level. Be honest — if numbers are poor, say so clearly.
++
++## Win Rate & Profit Factor Analysis
++Analyse whether the win rate and profit factor together indicate a healthy edge. Consider that a low win rate can still be profitable with high R:R, and vice versa.
++
++## Session Performance
++Identify the trader's best and worst performing sessions. Flag any sessions where the trader is losing money and recommend action.
++
++## Setup & Strategy Analysis
++Rank the setups by performance. Identify which setups are generating edge and which are destroying it. Be specific.
++
++## Psychology & Discipline Assessment
++Evaluate the emotion data and plan adherence rate. Identify behavioral patterns — revenge trading, overtrading, FOMO — if the data suggests them. Reference the logged mistakes.
++
++## Key Strengths
++2-3 specific things this trader is doing well, backed by the data.
++
++## Priority Improvements
++3-5 specific, actionable improvements ranked by expected impact. Be concrete — not "work on discipline" but "your London session win rate is 38% vs 61% in NY — stop trading London until you identify why."
++
++Keep the tone direct, professional, and coach-like. Use data to support every claim. Total length: 400-600 words.`;
++
++  // Call the Anthropic API
++  const apiKey = $app.settings().meta.senderAddress; // Reuse this field OR use a dedicated env var
++  // Better: read from environment variable ANTHROPIC_API_KEY
++  const anthropicKey = process.env.ANTHROPIC_API_KEY || apiKey;
++
++  if (!anthropicKey || anthropicKey.length < 20) {
++    return c.json(500, { error: "ANTHROPIC_API_KEY not configured. Add it to your Railway environment variables." });
++  }
++
++  let evaluation;
++  try {
++    const response = $http.send({
++      method: "POST",
++      url: "https://api.anthropic.com/v1/messages",
++      headers: {
++        "Content-Type":      "application/json",
++        "x-api-key":         anthropicKey,
++        "anthropic-version": "2023-06-01",
++      },
++      body: JSON.stringify({
++        model:      "claude-sonnet-4-20250514",
++        max_tokens: 1200,
++        messages:   [{ role: "user", content: prompt }],
++      }),
++    });
++
++    if (response.statusCode !== 200) {
++      const errData = JSON.parse(response.raw || "{}");
++      return c.json(500, { error: "Claude API error: " + (errData.error?.message || response.statusCode) });
++    }
++
++    const body = JSON.parse(response.raw);
++    evaluation  = (body.content && body.content[0] && body.content[0].text) || "";
++
++    if (!evaluation) return c.json(500, { error: "Empty response from Claude API" });
++
++  } catch(e) {
++    return c.json(500, { error: "Failed to reach Anthropic API: " + String(e) });
++  }
++
++  // Optionally log the analysis (no sensitive data stored, just metadata)
++  try {
++    const col = $app.dao().findCollectionByNameOrId("sync_logs");
++    if (col) {
++      const log = new Record(col);
++      log.set("user",    userId);
++      log.set("event",   "ai_coach_analysis");
++      log.set("message", `Analysis for ${stats.period_days}d period, ${stats.total_trades} trades`);
++      $app.dao().saveRecord(log);
++    }
++  } catch(e) { /* non-fatal */ }
++
++  return c.json(200, { evaluation });
++});
++
++
+ routerAdd("POST", "/api/stripe/webhook", (c) => {
+   if (rateLimit("stripe", 100, 60000)) return c.json(429, { error: "Rate limited" });
+ 
+@@ -284,8 +433,19 @@ routerAdd("POST", "/api/stripe/webhook", (c) => {
+     return c.json(400, { error: "Invalid payload" });
+   }
+ 
++  // Price IDs must match what you create in Stripe Dashboard
++  // Pro=$19, Advanced=$39, Elite=$69. Update these when you create Stripe products.
+   const TIER_MAP = {
+-    "price_tier1":1, "price_tier2":2, "price_tier3":3, "price_tier4":4, "price_tier5":5,
++    "price_starter":1,    // degraded free (manual downgrade, no Stripe product needed)
++    "price_pro":    2,    // $19/mo
++    "price_advanced":3,   // $39/mo
++    "price_elite":  4,    // $69/mo
++    // Legacy mappings — keeps old subscribers from breaking
++    "price_tier1":  2,
++    "price_tier2":  2,
++    "price_tier3":  3,
++    "price_tier4":  4,
++    "price_tier5":  4,
+   };
+   const evtType = String(body.type || "");
+ 
+@@ -329,13 +489,16 @@ onRecordBeforeCreateRequest((e) => {
+   const source = rec.get("source");
+   if (!userId || source !== "manual") return; // Only enforce on manual trades
+ 
++  // Synced with src/hooks/useTrades.js TIER_LIMITS — must stay in sync
++  // Tier 0 = Trial (14 days, 10 trades), 1 = Starter (free forever, degraded),
++  // 2 = Pro $19, 3 = Advanced $39, 4 = Elite $69 (unlimited)
+   const LIMITS = {
+-    0:{ trades:3,   lots:0.5  },
+-    1:{ trades:5,   lots:1    },
+-    2:{ trades:10,  lots:5    },
+-    3:{ trades:15,  lots:10   },
+-    4:{ trades:20,  lots:20   },
+-    5:{ trades:9999,lots:9999 },
++    0:{ trades:10,  lots:5    },   // Trial
++    1:{ trades:3,   lots:0.5  },   // Starter (degraded free)
++    2:{ trades:20,  lots:20   },   // Pro
++    3:{ trades:50,  lots:50   },   // Advanced
++    4:{ trades:9999,lots:9999 },   // Elite (and legacy tier 5)
++    5:{ trades:9999,lots:9999 },   // Legacy tier 5 — treated as Elite
+   };
+ 
+   let tier = 0;
+@@ -390,3 +553,191 @@ onRecordAfterCreateRequest((e) => {
+     console.error("Profile create failed:", user.id, e);
+   }
+ }, "_pb_users_auth_");
++
++// ── AI Performance Coach — POST /api/ai-coach ─────────────────────────────────
++// Accepts aggregated trade stats from the frontend, calls Claude Sonnet via the
++// Anthropic API, and returns a structured written performance evaluation.
++// Gated behind Tier 2+ (Pro and above). Costs ~$0.003 per call.
++// Requires env var: ANTHROPIC_API_KEY set in Railway dashboard.
++routerAdd("POST", "/api/ai-coach", (c) => {
++  const ip = c.realIP();
++  // Tighter rate limit for AI calls — expensive and abuse-prone
++  if (rateLimit("ai-coach:" + ip, 10, 60000)) {
++    return c.json(429, { error: "Rate limit exceeded. Please wait before requesting another analysis." });
++  }
++
++  // ── Auth: require valid JWT ──────────────────────────────────────────────────
++  const authHeader = c.request().header.get("Authorization") || "";
++  if (!authHeader.startsWith("Bearer ")) return c.json(401, { error: "Authentication required" });
++  const token = authHeader.slice(7).trim();
++
++  let userId;
++  try {
++    // PocketBase token verification
++    const record = $app.dao().findAuthRecordByToken(token, $app.settings().meta.appName);
++    userId = record.id;
++  } catch (e) {
++    return c.json(401, { error: "Invalid or expired session" });
++  }
++
++  // ── Tier gate: Pro (2) and above only ────────────────────────────────────────
++  let userTier = 0;
++  try {
++    const profiles = $app.dao().findRecordsByFilter("profiles", "user = {:uid}", { uid: userId }, 1, 0);
++    if (profiles && profiles.length) userTier = Number(profiles[0].get("tier")) || 0;
++  } catch (e) { /* allow, will fail tier check below */ }
++
++  if (userTier < 2) {
++    return c.json(403, {
++      error: "AI Coach is available on the Pro plan ($19/mo) and above. Please upgrade to access this feature."
++    });
++  }
++
++  // ── Parse the stats payload from the frontend ─────────────────────────────
++  let stats;
++  try {
++    stats = $apis.requestInfo(c).data;
++    if (!stats || typeof stats !== "object") return c.json(400, { error: "Invalid stats payload" });
++  } catch (e) {
++    return c.json(400, { error: "Invalid request body" });
++  }
++
++  // ── Check ANTHROPIC_API_KEY is configured ────────────────────────────────────
++  const anthropicKey = $os.getenv("ANTHROPIC_API_KEY");
++  if (!anthropicKey || anthropicKey.length < 20) {
++    return c.json(503, { error: "AI Coach is not yet configured. Set ANTHROPIC_API_KEY in Railway." });
++  }
++
++  // ── Build the analysis prompt ────────────────────────────────────────────────
++  // We send aggregated statistics, never raw trade data, to keep the payload small
++  // and protect user privacy. The prompt instructs Claude to act as a professional
++  // trading performance coach specialising in ICT / Smart Money concepts.
++  const prompt = `You are a professional trading performance coach specialising in ICT Smart Money Concepts, institutional order flow, and trading psychology.
++
++Analyse the following trader's performance statistics and produce a structured written evaluation. Be specific, data-driven, and constructive. Do not be generic.
++
++## Trader Statistics
++- Date range analysed: ${san(String(stats.dateRange || "Last 30 days"), 100)}
++- Total trades: ${Number(stats.totalTrades) || 0}
++- Win rate: ${Number(stats.winRate) || 0}%
++- Profit factor: ${Number(stats.profitFactor) || 0}
++- Expectancy: ${Number(stats.expectancy) || 0}R
++- Average RR achieved: ${Number(stats.avgRR) || 0}
++- Total P&L: ${Number(stats.totalPnl) || 0}
++- Max drawdown: ${Number(stats.maxDrawdown) || 0}%
++
++## Session breakdown (win rate per session)
++${san(JSON.stringify(stats.sessionStats || {}), 500)}
++
++## Setup performance (win rate per setup type)
++${san(JSON.stringify(stats.setupStats || {}), 500)}
++
++## Psychology data
++- Plan adherence rate: ${Number(stats.planAdherence) || 0}%
++- Most common emotion at trade entry: ${san(String(stats.topEmotion || "Not recorded"), 50)}
++- Grade distribution (A+ to F): ${san(JSON.stringify(stats.gradeDistribution || {}), 200)}
++- Revenge trading incidents: ${Number(stats.revengeCount) || 0}
++- Overtrading days: ${Number(stats.overtradingDays) || 0}
++
++## Day-of-week P&L pattern
++${san(JSON.stringify(stats.dowStats || {}), 300)}
++
++Respond in the following JSON structure only — no markdown, no preamble:
++{
++  "headline": "One sentence overall verdict (e.g. 'Profitable but emotionally inconsistent execution')",
++  "score": <integer 0-100, overall execution quality score>,
++  "strengths": ["strength 1", "strength 2", "strength 3"],
++  "weaknesses": ["weakness 1", "weakness 2", "weakness 3"],
++  "sessionAnalysis": "2-3 sentences on session performance patterns",
++  "setupAnalysis": "2-3 sentences on which setups are working and which aren't",
++  "psychologyAnalysis": "2-3 sentences on emotional patterns and discipline",
++  "riskAnalysis": "2-3 sentences on risk management and RR discipline",
++  "recommendations": ["specific action 1", "specific action 2", "specific action 3", "specific action 4"],
++  "focusForNextWeek": "One specific, actionable focus point for the coming week"
++}`;
++
++  // ── Call Anthropic API ────────────────────────────────────────────────────────
++  // PocketBase hooks use Go's $http.send() for outbound HTTP requests
++  let analysisText;
++  try {
++    const resp = $http.send({
++      method: "POST",
++      url:    "https://api.anthropic.com/v1/messages",
++      headers: {
++        "Content-Type":      "application/json",
++        "x-api-key":         anthropicKey,
++        "anthropic-version": "2023-06-01",
++      },
++      body: JSON.stringify({
++        model:      "claude-sonnet-4-20250514",
++        max_tokens: 1000,
++        messages:   [{ role: "user", content: prompt }],
++      }),
++      timeout: 30, // seconds
++    });
++
++    if (resp.statusCode !== 200) {
++      console.error("Anthropic API error:", resp.statusCode, resp.raw);
++      return c.json(502, { error: "AI service temporarily unavailable. Please try again." });
++    }
++
++    const body = JSON.parse(resp.raw);
++    analysisText = body?.content?.[0]?.text || "";
++    if (!analysisText) return c.json(502, { error: "Empty response from AI service" });
++
++  } catch (e) {
++    console.error("AI coach fetch failed:", e);
++    return c.json(502, { error: "Could not reach AI service. Please try again shortly." });
++  }
++
++  // ── Parse and validate the JSON response from Claude ─────────────────────────
++  let analysis;
++  try {
++    // Strip any accidental markdown fences Claude might add
++    const cleaned = analysisText.replace(/```json|```/g, "").trim();
++    analysis = JSON.parse(cleaned);
++  } catch (e) {
++    // If JSON parse fails, return the raw text so the frontend can still display it
++    return c.json(200, { raw: analysisText, parsed: false });
++  }
++
++  // ── Optional: store the analysis for history (if ai_analyses collection exists) ─
++  try {
++    const col = $app.dao().findCollectionByNameOrId("ai_analyses");
++    if (col) {
++      const rec = new Record(col);
++      rec.set("user",       userId);
++      rec.set("stats_snapshot", JSON.stringify(stats));
++      rec.set("analysis",   JSON.stringify(analysis));
++      rec.set("score",      Number(analysis.score) || 0);
++      $app.dao().saveRecord(rec);
++    }
++  } catch (e) {
++    // Non-fatal — collection may not exist yet, just log and continue
++    console.warn("Could not save AI analysis to history:", e);
++  }
++
++  return c.json(200, { analysis, parsed: true });
++});
++
++// ── MT5 account — hash api_key_plain before saving ───────────────────────────
++// The frontend sends api_key_plain (the raw token the user pastes into MT5 EA).
++// This hook SHA-256 hashes it server-side, stores the hash, and clears the plain text.
++// The MT5 EA sends the plain key in its requests; the hook verifies by hashing it.
++onRecordBeforeCreateRequest((e) => {
++  if (e.record.collection().name !== "mt5_accounts") return;
++
++  const plain = e.record.get("api_key_plain");
++  if (!plain || String(plain).length < 10) return;
++
++  try {
++    // $security.pbkdf2 is available in PocketBase hooks for hashing
++    const hash = $security.pbkdf2(plain, "edge_journal_salt", 10000, 32, "sha256");
++    e.record.set("api_key_hash", hash);
++    // Remove the plain text so it is never stored in the database
++    e.record.set("api_key_plain", "");
++  } catch(e) {
++    // If hashing fails, block the creation — do not store a plain-text key
++    throw new Error("Failed to hash API key — record not created");
++  }
++}, "mt5_accounts");

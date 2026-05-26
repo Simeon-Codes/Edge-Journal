@@ -20,7 +20,6 @@ export const useTrades = () => {
   const [error, setError]     = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage]       = useState(1);
-  const unsubRef              = useRef(null);
 
   const load = useCallback(async (pageNum = 1, append = false) => {
     if (!user) return;
@@ -42,13 +41,17 @@ export const useTrades = () => {
   useEffect(() => {
     load(1);
     if (user) {
-      unsubRef.current = Trades.subscribe(user.id, (event) => {
+      // Trades.subscribe is async (SDK returns a Promise<unsubscribe fn>).
+      // Store the Promise so the cleanup can await and call the unsub fn.
+      let unsubFn = null;
+      Trades.subscribe(user.id, (event) => {
         if (event.action === 'create') setTrades(prev => [event.record, ...prev]);
         else if (event.action === 'update') setTrades(prev => prev.map(t => t.id === event.record.id ? event.record : t));
         else if (event.action === 'delete') setTrades(prev => prev.filter(t => t.id !== event.record.id));
-      });
+      }).then(fn => { unsubFn = fn; }).catch(() => {});
+
+      return () => { if (unsubFn) unsubFn(); };
     }
-    return () => { if (unsubRef.current) unsubRef.current(); };
   }, [user, load]);
 
   const checkTierLimit = useCallback((lotSize = 0) => {
