@@ -78,6 +78,9 @@ export const AuthProvider = ({ children }) => {
       isLoggedIn: !!user,
       tier: profile?.tier ?? 0,
       subscriptionStatus: profile?.subscription_status ?? 'trial',
+      // Expose the raw JWT token so components like AICoach can pass it
+      // directly to custom PocketBase endpoints via Authorization header.
+      token: Auth.getToken ? Auth.getToken() : null,
     }}>
       {children}
     </AuthContext.Provider>

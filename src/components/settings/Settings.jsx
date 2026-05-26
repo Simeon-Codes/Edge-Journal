@@ -4,7 +4,11 @@ import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { InvestorLinks, MT5Accounts } from '../../services/pb.js';
 import { TIER_LIMITS } from '../../hooks/useTrades.js';
 
-const TIER_PRICES = { 0:'Free Trial', 1:'$50/mo', 2:'$100/mo', 3:'$200/mo', 4:'$300/mo', 5:'$500/mo' };
+// New competitive tier structure — synced with useTrades.js TIER_LIMITS
+// 0=Trial(free,14d), 1=Starter(free forever,degraded), 2=Pro($19), 3=Advanced($39), 4=Elite($69)
+const TIER_PRICES  = { 0:'Free (14 days)', 1:'Free forever', 2:'$19/mo', 3:'$39/mo', 4:'$69/mo' };
+const TIER_NAMES   = { 0:'Trial', 1:'Starter', 2:'Pro', 3:'Advanced', 4:'Elite' };
+const TIER_COLORS  = { 0:'#7a7f9a', 1:'#7a7f9a', 2:'#4a90e2', 3:'#facc15', 4:'#fb923c' };
 const TIER_COLORS = { 0:'#8a8fa8', 1:'#00e5a0', 2:'#00e5a0', 3:'#facc15', 4:'#fb923c', 5:'#818cf8' };
 
 export default function Settings() {
@@ -224,23 +228,29 @@ export default function Settings() {
           <Card t={t}>
             <SectionTitle t={t}>Subscription Tiers</SectionTitle>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[0,1,2,3,4,5].map(tierNum => {
-                const lim = TIER_LIMITS[tierNum];
+              {[0,1,2,3,4].map(tierNum => {
                 const active = tier === tierNum;
+                const tierDescriptions = {
+                  0: '10 trades/day · 5 lots/day · 14-day trial',
+                  1: '3 trades/day · 0.5 lot/day · Ad-supported',
+                  2: '20 trades/day · 20 lots/day · No ads',
+                  3: '50 trades/day · 50 lots/day · No ads',
+                  4: 'Unlimited trades · Unlimited lots · No ads',
+                };
                 return (
                   <div key={tierNum} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: active ? TIER_COLORS[tierNum] + '12' : t.bg, border: `1px solid ${active ? TIER_COLORS[tierNum] + '60' : t.border}`, borderRadius: 10 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ color: TIER_COLORS[tierNum], fontWeight: 800, fontSize: 14 }}>{tierNum === 0 ? 'Free Trial' : `Tier ${tierNum}`}</span>
+                        <span style={{ color: TIER_COLORS[tierNum], fontWeight: 800, fontSize: 14 }}>{TIER_NAMES[tierNum]}</span>
                         {active && <span style={{ fontSize: 10, color: TIER_COLORS[tierNum], background: TIER_COLORS[tierNum] + '18', padding: '2px 8px', borderRadius: 10 }}>Current</span>}
                       </div>
                       <div style={{ fontSize: 11, color: t.textMuted, marginTop: 3 }}>
-                        {tierNum === 0 ? '3 trades/day · 0.5 lot/day · 14 days' : `${lim.trades} trades/day · ${lim.lots} lots/day`}
+                        {tierDescriptions[tierNum]}
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 18, fontWeight: 800, color: TIER_COLORS[tierNum] }}>{TIER_PRICES[tierNum]}</div>
-                      {tierNum > 0 && !active && (
+                      {tierNum >= 2 && !active && (
                         <button style={{ marginTop: 4, fontSize: 11, padding: '5px 12px', background: TIER_COLORS[tierNum] + '18', border: `1px solid ${TIER_COLORS[tierNum]}40`, borderRadius: 6, color: TIER_COLORS[tierNum], cursor: 'pointer', fontFamily: 'inherit' }}>
                           {tier < tierNum ? 'Upgrade' : 'Downgrade'}
                         </button>
@@ -271,9 +281,9 @@ export default function Settings() {
             </div>
           </Field2>
           <SectionTitle t={t} style={{ marginTop: 16 }}>Ads</SectionTitle>
-          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 12 }}>Google Ad Manager ads are shown on the free tier. Paid subscribers can disable ads.</div>
-          <Toggle label="Show Ads" checked={profile?.ads_enabled} onChange={v => updateProfile({ ads_enabled: v })} t={t} disabled={tier > 0} />
-          {tier === 0 && <div style={{ fontSize: 10, color: t.textDim, marginTop: 6 }}>Upgrade to any paid tier to hide ads.</div>}
+          <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 12 }}>Ads are shown on the free Trial and Starter tiers. Upgrade to Pro or higher to remove ads permanently.</div>
+          <Toggle label="Show Ads" checked={profile?.ads_enabled} onChange={v => updateProfile({ ads_enabled: v })} t={t} disabled={tier < 2} />
+          {tier < 2 && <div style={{ fontSize: 10, color: t.textDim, marginTop: 6 }}>Upgrade to Pro ($19/mo) or higher to hide ads.</div>}
         </Card>
       )}
     </div>

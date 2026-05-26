@@ -1,13 +1,15 @@
 // Analytics.jsx
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { GRADE_COLORS } from '../../utils/constants.js';
+import AICoach from './AICoach.jsx';
 
 const pnlColor = (v, t) => Number(v) > 0 ? t.accent : Number(v) < 0 ? t.red : t.textMuted;
 
 export function Analytics({ trades, stats }) {
   const { theme: t } = useTheme();
+  const [tab, setTab] = useState('charts'); // 'charts' | 'ai-coach'
 
   const monthlyData = useMemo(() => {
     const map = {};
@@ -59,6 +61,27 @@ export function Analytics({ trades, stats }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+
+      {/* ── Tab bar: Charts vs AI Coach ── */}
+      <div style={{ display:'flex', gap:6, borderBottom:`1px solid ${t.border}`, paddingBottom:12 }}>
+        {[['charts','📊 Analytics'],['ai-coach','🧠 AI Coach']].map(([id,label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding:'7px 16px', fontSize:12, fontFamily:'inherit', cursor:'pointer',
+            borderRadius:8, fontWeight: tab===id ? 700 : 400,
+            background: tab===id ? t.accentDim : 'transparent',
+            border: `1px solid ${tab===id ? t.accentBorder : 'transparent'}`,
+            color: tab===id ? t.accent : t.textMuted,
+          }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── AI Coach tab ── */}
+      {tab === 'ai-coach' && <AICoach trades={trades} />}
+
+      {/* ── Charts tab ── */}
+      {tab === 'charts' && <>
       {/* Summary stats */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12 }}>
         {[
@@ -150,6 +173,7 @@ export function Analytics({ trades, stats }) {
           ))}
         </div>
       </div>
+      </>}
     </div>
   );
 }

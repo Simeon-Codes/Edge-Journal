@@ -12,10 +12,23 @@ export const SESSIONS = [
 ];
 
 export const SETUPS = [
+  // ── ICT / Smart Money ──────────────────────────────────────────────────────
   'OTE','Order Block','Fair Value Gap','Breaker Block',
   'SMT Divergence','Liquidity Sweep','NWOG/NDOG','Judas Swing',
   'Power of 3 (AMD)','Mitigation Block','Propulsion Block',
-  'Rejection Block','Volume Imbalance','CISD','Other',
+  'Rejection Block','Volume Imbalance','CISD',
+  // ── Supply & Demand (Sam Seiden) ──────────────────────────────────────────
+  'S&D Supply Zone','S&D Demand Zone','S&D Rally-Base-Drop','S&D Drop-Base-Rally',
+  // ── Price Action / Brooks ─────────────────────────────────────────────────
+  'PA Bar Pattern','PA Double Top/Bottom','PA Micro Channel','PA Wedge','PA Final Flag',
+  // ── Wyckoff ───────────────────────────────────────────────────────────────
+  'Wyckoff Accumulation','Wyckoff Distribution','Wyckoff Spring','Wyckoff UTAD',
+  // ── MA Confluence ─────────────────────────────────────────────────────────
+  'MA Cross','MA Dynamic Support','MA Dynamic Resistance','MA Ribbon',
+  // ── Fibonacci ─────────────────────────────────────────────────────────────
+  'Fib Retracement','Fib Extension','Fib Confluence Zone',
+  // ── Catch-all ─────────────────────────────────────────────────────────────
+  'Other',
 ];
 
 export const EMOTIONS = [
@@ -41,9 +54,21 @@ export const SESSION_COLORS = {
   'London/NY Overlap':'#fb923c','Pre-Market':'#8a8fa8','After-Hours':'#8a8fa8',
 };
 
+// ── Playbook categories for the filter bar in Playbook.jsx ───────────────────
+export const PLAYBOOK_CATEGORIES = [
+  'All',
+  'ICT / Smart Money',
+  'Supply & Demand',
+  'Price Action',
+  'Wyckoff',
+  'Trend Following',
+  'Fibonacci',
+  'Other',
+];
+
 export const ICT_PLAYBOOK = [
   {
-    id:'ote', name:'OTE Retracement', category:'Entry Model', color:'#00e5a0', tag:'High Probability',
+    id:'ote', name:'OTE Retracement', category:'ICT / Smart Money', color:'#00e5a0', tag:'High Probability',
     concept:'Optimal Trade Entry — the 62–79% Fibonacci retracement zone used to enter after a displacement impulse. Represents the point where smart money accumulates before continuing the HTF move.',
     confluences:['HTF bias aligned','Inside a killzone','MSS on LTF','FVG or OB in OTE zone','DXY divergence confirms'],
     entry:['Identify Daily/4H bias first','Wait for displacement/impulse move','Draw Fib from swing low→high (bull) or high→low (bear)','Enter at 62–79% zone','Confirm with M5/M15 MSS inside the zone'],
@@ -52,7 +77,7 @@ export const ICT_PLAYBOOK = [
     notes:'Highest probability during London Open (02:00–05:00 EST) and NY Open (07:00–10:00 EST). Avoid news within 15 minutes.',
   },
   {
-    id:'ob', name:'Order Block', category:'PD Array', color:'#facc15', tag:'Smart Money',
+    id:'ob', name:'Order Block', category:'ICT / Smart Money', color:'#facc15', tag:'Smart Money',
     concept:'The last opposing candle before a strong displacement. Represents where institutional orders were placed, causing the subsequent imbalance. Price returns to this zone to pair off remaining orders.',
     confluences:['HTF OB respected first','FVG nested within OB','Volume spike on displacement','Clean swing point','Killzone timing'],
     entry:['Identify strong impulsive displacement','Mark last DOWN candle before bullish move (Bull OB)','Or last UP candle before bearish (Bear OB)','Wait for return to OB','Enter at 50% of OB body or at the open'],
@@ -61,7 +86,7 @@ export const ICT_PLAYBOOK = [
     notes:'Refined OBs with nested FVGs are highest quality. OB must have caused a BOS or CHoCH to be valid.',
   },
   {
-    id:'fvg', name:'Fair Value Gap', category:'PD Array', color:'#818cf8', tag:'Core Concept',
+    id:'fvg', name:'Fair Value Gap', category:'ICT / Smart Money', color:'#818cf8', tag:'Core Concept',
     concept:'A 3-candle imbalance where a displacement candle moves so fast it leaves a gap. Price frequently returns to fill this inefficiency before continuing the original direction.',
     confluences:['In direction of HTF bias','At or near a killzone','Nested within HTF FVG','SMT divergence present','Below/above a liquidity pool'],
     entry:['Identify the 3-candle pattern on M1–M15','Mark gap: candle 1 high to candle 3 low (bull FVG)','Or candle 1 low to candle 3 high (bear FVG)','Enter at 50% of the FVG (equilibrium)','Use LTF FVG/OB inside for precision'],
@@ -70,7 +95,7 @@ export const ICT_PLAYBOOK = [
     notes:'Nested FVGs on lower TFs within HTF FVGs are the highest probability entries. 50% entry is optimal.',
   },
   {
-    id:'smt', name:'SMT Divergence', category:'Confirmation', color:'#fb923c', tag:'Advanced',
+    id:'smt', name:'SMT Divergence', category:'ICT / Smart Money', color:'#fb923c', tag:'Advanced',
     concept:'Smart Money Technique — when two positively correlated instruments fail to confirm each other\'s swing highs or lows. Signals institutional manipulation and an imminent reversal.',
     confluences:['At a HTF PDA array','One pair sweeps, other doesn\'t','In a killzone','Correlated pairs diverge same candle','Volume spike on the sweep'],
     entry:['Open correlated pairs side by side','Wait for one pair to sweep a high/low','Confirm the other pair DID NOT confirm','Enter in direction of non-confirming pair\'s reversal','Use LTF MSS as trigger'],
@@ -79,7 +104,7 @@ export const ICT_PLAYBOOK = [
     notes:'Most powerful at major liquidity pools during NY Open. DXY/Gold SMT is particularly reliable for Gold trades.',
   },
   {
-    id:'breaker', name:'Breaker Block', category:'PD Array', color:'#f87171', tag:'Reversal',
+    id:'breaker', name:'Breaker Block', category:'ICT / Smart Money', color:'#f87171', tag:'Reversal',
     concept:'A failed Order Block that has been violated. After a swing high/low is broken, the OB associated with that swing becomes a Breaker — price returns to this zone for continuation.',
     confluences:['Previous OB that got broken','BOS/CHoCH confirmed','HTF alignment','In a killzone','FVG inside the Breaker'],
     entry:['Identify OB that caused previous swing high/low','Wait for price to break THROUGH that OB','Mark breaker zone (same area as old OB)','Wait for price to retrace into breaker','Enter with LTF confirmation'],
@@ -87,4 +112,85 @@ export const ICT_PLAYBOOK = [
     tp:'Previous high/low or next HTF PDA array',
     notes:'Breakers confirm the market structure shift. Only valid after a confirmed BOS. Old resistance becomes new support.',
   },
+  // ── Supply & Demand (Sam Seiden) ────────────────────────────────────────────
+  {
+    id:'sd_demand', name:'S&D Demand Zone', category:'Supply & Demand', color:'#34d399', tag:'Reversal Buy',
+    concept:'A price level where a strong bullish impulse originated, leaving behind unfilled buy orders. When price returns, those resting orders cause a reaction. Identified by a sharp "departure" candle leaving the zone.',
+    confluences:['Fresh untested zone (no prior return)','Strong departure candle from the zone','Higher timeframe demand respected first','Zone created on high-volume session','Clean base — minimal overlapping candles'],
+    entry:['Mark the base candles that preceded the departure','Enter at the top of the base (conservative) or bottom (aggressive)','Use LTF price action confirmation on the first touch','Set alerts for price returning to zone','Avoid zones that have been tested more than twice'],
+    sl:'Below the lowest wick of the entire demand zone',
+    tp:'Next supply zone, equal highs, or liquidity pools above',
+    notes:'Sam Seiden principle: supply and demand imbalances drive price, not patterns. A fresh zone that has never been revisited has the highest probability.',
+  },
+  {
+    id:'sd_supply', name:'S&D Supply Zone', category:'Supply & Demand', color:'#f87171', tag:'Reversal Sell',
+    concept:'A price level where a strong bearish impulse originated. Unfilled sell orders rest at this level. The sharper and cleaner the departure, the stronger the zone. Price returns to fill the remaining orders.',
+    confluences:['Fresh zone — first return after creation','Strong bearish departure candle','HTF supply confirmed','Zone created during high-volume session','Minimal wicks inside the base'],
+    entry:['Mark base candles before the departure','Enter at the bottom of the base (conservative) or top (aggressive)','Confirm with LTF rejection patterns on return','Trail stop once price moves in favor','Treat any second test as weakened'],
+    sl:'Above the highest wick of the entire supply zone',
+    tp:'Next demand zone, equal lows, or buy-side liquidity pools below',
+    notes:'Rally-Base-Drop (supply) and Drop-Base-Rally (demand) are the two core patterns. The base is where institutional orders were loaded.',
+  },
+  // ── Price Action / Brooks ────────────────────────────────────────────────────
+  {
+    id:'pa_trend', name:'Price Action — Trend Continuation', category:'Price Action', color:'#60a5fa', tag:'Brooks Method',
+    concept:'Al Brooks price action methodology focuses on reading every bar as a buying or selling pressure signal. Trend continuations form when the market creates a "tight channel" or "climax" followed by a measured move. Entries are on pullbacks that form a "two-legged correction" in the direction of the trend.',
+    confluences:['Strong trending structure on 5M or 15M','Two-legged pullback (measured retracement)','Bull or bear trend bar closing on its high/low','Previous swing point not violated','No strong reversal bar at entry level'],
+    entry:['Identify the strong trend leg (bull or bear)','Wait for a two-legged pullback (AB=CD style)','Enter on a stop order above the high of a bull signal bar','For shorts: stop order below the low of a bear signal bar','Target measured move equal to trend leg'],
+    sl:'Below the low of the signal bar (long) / Above the high (short)',
+    tp:'Measured move equal to the trend leg, or next major resistance level',
+    notes:'Brooks emphasizes context over pattern. A setup in a strong trend is always higher probability than the same setup in a choppy range.',
+  },
+  // ── Wyckoff ──────────────────────────────────────────────────────────────────
+  {
+    id:'wyckoff_acc', name:'Wyckoff Accumulation', category:'Wyckoff', color:'#a78bfa', tag:'Institutional',
+    concept:'Richard Wyckoff\'s Accumulation schematic describes how large operators (composite man) absorb supply over a base structure. The key phases are: Preliminary Support (PS), Selling Climax (SC), Automatic Rally (AR), Secondary Test (ST), Spring (false breakdown), and Sign of Strength (SOS) leading to markup.',
+    confluences:['Extended downtrend preceding the base','Selling climax with large volume spike','Successful "Spring" — brief break below support that quickly reverses','Narrowing range in the base (volatility compression)','Sign of Strength breakout with expanding volume'],
+    entry:['Best entry: long on the Spring test with tight stop below the Spring low','Secondary entry: breakout of the Trading Range on the SOS','Confirm with volume expansion on SOS and contraction on pullbacks','Use LTF for precision entry within the Spring or SOS zone'],
+    sl:'Below the lowest point of the Spring or below Phase C lows',
+    tp:'Measured move (height of the Trading Range projected upward), prior highs',
+    notes:'Wyckoff works best on daily/4H for identifying the macro structure, then lower TFs for entry precision. Volume is the key differentiator from standard support/resistance.',
+  },
+  {
+    id:'wyckoff_dist', name:'Wyckoff Distribution', category:'Wyckoff', color:'#f472b6', tag:'Institutional',
+    concept:'Distribution is the mirror of accumulation — large operators offload positions into retail buying. Phases include Preliminary Supply (PSY), Buying Climax (BC), Automatic Reaction (AR), UTAD (Upthrust After Distribution, a false breakout), and Sign of Weakness (SOW) leading to markdown.',
+    confluences:['Extended uptrend before the range','Buying climax with huge volume','UTAD — brief break above resistance that quickly fails','SOW with wide spread down on expanding volume','Narrowing range with decreasing volume on rallies'],
+    entry:['Ideal entry: short on the UTAD reaction with stop above the UTAD high','Secondary entry: breakdown of the Trading Range on SOW','Confirm with volume analysis — heavy volume on down bars, light on up bars'],
+    sl:'Above the UTAD high or above Phase B resistance',
+    tp:'Measured move downward (height of Trading Range), prior lows, demand zones',
+    notes:'The UTAD is the highest-probability short setup in Wyckoff. It\'s the equivalent of the Spring but for distribution — a final shakeout of shorts before the markdown.',
+  },
+  // ── Moving Average Confluence ─────────────────────────────────────────────────
+  {
+    id:'ma_confluence', name:'MA Confluence Entry', category:'MA Confluence', color:'#fbbf24', tag:'Trend Following',
+    concept:'Moving average confluence entries use the dynamic support/resistance provided by the interaction of multiple MAs (typically EMA 20/50/200) to time trend continuation entries. Price pulling back into a "cluster" of aligned MAs in a trending market offers a high-probability entry zone.',
+    confluences:['Price above all three MAs (bullish) or below all (bearish)','MAs ordered bullishly: 20 > 50 > 200 (or reverse for bear)','Pullback into the 20/50 EMA cluster','Volume declining on pullback, expanding on continuation','No major news within 30 minutes'],
+    entry:['Confirm trend: daily 200 EMA direction','Wait for pullback to the 20 or 50 EMA on H1/H4','Look for rejection candle (hammer, engulf, inside bar) at the MA cluster','Enter on the close of the rejection candle','Scale in if price dips to 200 EMA as final support'],
+    sl:'Below the 200 EMA (long) or above it (short) — a close through the 200 EMA invalidates the trend bias',
+    tp:'Previous swing highs/lows, or 1.5–2× the distance from entry to the 200 EMA',
+    notes:'The 200 EMA is the institutional benchmark. If price is above it, the structural bias is bullish. MA confluence works best in trending markets — avoid in ranging conditions.',
+  },
+  // ── Fibonacci ─────────────────────────────────────────────────────────────────
+  {
+    id:'fib_retracement', name:'Fibonacci Retracement', category:'Fibonacci', color:'#e879f9', tag:'Classic',
+    concept:'Fibonacci retracements identify high-probability pullback levels within a trend based on the natural ratios derived from the Fibonacci sequence (23.6%, 38.2%, 50%, 61.8%, 78.6%). The 61.8% "Golden Ratio" is the most respected level in institutional trading.',
+    confluences:['Clean swing high to swing low to draw from','61.8% or 78.6% coinciding with an OB, FVG, or S&D zone','HTF trend direction aligned with the trade','Rejection candle at the retracement level','Volume declining into the fib level (weak retracement)'],
+    entry:['Identify a strong impulsive trend leg (swing low to high for bull)','Draw Fibonacci from the origin of the move to its end','Watch 38.2%, 50%, 61.8%, and 78.6% for reaction','Enter at a key fib level with a confirmation bar','Treat 88.6% as a last-ditch level — beyond this, the move is likely reversing'],
+    sl:'Below the 100% level (below the swing low for longs)',
+    tp:'-27.2%, -61.8%, or -100% Fibonacci extensions, or prior highs/lows',
+    notes:'Fibonacci levels gain power when they confluence with other tools: a 61.8% fib that also aligns with an Order Block and is inside a killzone is a very high-probability setup.',
+  },
+  // ── Custom / Other ────────────────────────────────────────────────────────────
+  {
+    id:'other', name:'Other / Custom Strategy', category:'Other', color:'#94a3b8', tag:'Custom',
+    concept:'Use this entry to log trades taken on a personal or unlisted strategy. Document your own setup logic, entry rules, and confluences in the notes. Over time, your trade log will reveal which custom setups perform best.',
+    confluences:['Defined in your personal trading plan','Documented entry trigger','Risk defined before entry','Aligned with HTF bias (recommended)','Backtested or forward-tested logic'],
+    entry:['Define your specific entry trigger','Document the setup logic in the trade notes field','Record all confluences present at the time of entry','Assign a grade after the trade closes','Review monthly to identify patterns in your custom setup performance'],
+    sl:'As defined by your personal strategy rules',
+    tp:'As defined by your personal strategy rules',
+    notes:'Logging custom setups consistently is how you discover your own edge. EDGE Journal tracks everything — let the data tell you which setups deserve a spot in your core playbook.',
+  },
 ];
+
+// ── Also update SETUPS list to include non-ICT strategies for TradeForm ───────
+// The setup field in TradeForm is free-text so this just enriches the dropdown

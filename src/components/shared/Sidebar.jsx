@@ -14,8 +14,10 @@ const NAV_ITEMS = [
   { id: 'settings',   icon: '⚙', label: 'Settings'    },
 ];
 
-const TIER_COLORS = { 0:'#8a8fa8', 1:'#00e5a0', 2:'#00e5a0', 3:'#facc15', 4:'#fb923c', 5:'#818cf8' };
-const TIER_LABELS = { 0:'Trial', 1:'T1', 2:'T2', 3:'T3', 4:'T4', 5:'T5' };
+// Tier display — synced with TIER_LIMITS in useTrades.js
+// 0=Trial, 1=Starter(free), 2=Pro, 3=Advanced, 4=Elite
+const TIER_COLORS = { 0:'#7a7f9a', 1:'#7a7f9a', 2:'#4a90e2', 3:'#facc15', 4:'#fb923c' };
+const TIER_LABELS = { 0:'TRIAL', 1:'FREE', 2:'PRO', 3:'ADV', 4:'ELITE' };
 
 export default function Sidebar({ view, setView, collapsed, setCollapsed, stats }) {
   const { user, profile, logout, tier } = useAuth();
