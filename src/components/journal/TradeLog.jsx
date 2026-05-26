@@ -115,7 +115,7 @@ export default function TradeLog({ trades, onEdit, onDelete, getImageUrl }) {
 
 function TradeCard({ trade: tr, t, selected, onSelect, onEdit, onDelete }) {
   return (
-    <div style={{ background:t.bgCard, border:`1px solid ${selected?t.accent+'40':t.border}`, borderRadius:10, padding:13, cursor:'pointer', transition:'border-color 0.15s', background: selected ? t.accentDim : t.bgCard }}
+    <div style={{ border:`1px solid ${selected?t.accent+'40':t.border}`, borderRadius:10, padding:13, cursor:'pointer', transition:'border-color 0.15s', background: selected ? t.accentDim : t.bgCard }}
       onClick={onSelect}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
         <div style={{ display:'flex', gap:7, alignItems:'center' }}>
