@@ -8,7 +8,6 @@ import { TIER_LIMITS } from '../../hooks/useTrades.js';
 // 0=Trial(free,14d), 1=Starter(free forever,degraded), 2=Pro($19), 3=Advanced($39), 4=Elite($69)
 const TIER_PRICES  = { 0:'Free (14 days)', 1:'Free forever', 2:'$19/mo', 3:'$39/mo', 4:'$69/mo' };
 const TIER_NAMES   = { 0:'Trial', 1:'Starter', 2:'Pro', 3:'Advanced', 4:'Elite' };
-const TIER_COLORS  = { 0:'#7a7f9a', 1:'#7a7f9a', 2:'#4a90e2', 3:'#facc15', 4:'#fb923c' };
 const TIER_COLORS = { 0:'#8a8fa8', 1:'#00e5a0', 2:'#00e5a0', 3:'#facc15', 4:'#fb923c', 5:'#818cf8' };
 
 export default function Settings() {
