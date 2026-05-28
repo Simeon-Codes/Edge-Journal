@@ -286,15 +286,17 @@ export const InvestorLinks = {
     const user  = pb.authStore.model;
     const token = generateSecureToken(32);
 
+    // Field names use snake_case to match PocketBase collection schema exactly.
+    // InvestorView.jsx passes { label, showPnl, showLotSize } — we map here.
     return pb.collection('investor_links').create({
       user:          user.id,
       token,
       label:         sanitise(label, 60),
       is_active:     true,
       views:         0,
-      show_pnl:      showPnl,
-      show_lot_size: showLotSize,
-      expires_at:    expiresAt,
+      show_pnl:      Boolean(showPnl),
+      show_lot_size: Boolean(showLotSize),
+      expires_at:    expiresAt || null,
     });
   },
 

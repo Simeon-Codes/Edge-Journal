@@ -11,7 +11,6 @@ import TradeForm from './components/journal/TradeForm.jsx';
 const Dashboard    = lazy(() => import('./components/dashboard/Dashboard.jsx'));
 const TradeLog     = lazy(() => import('./components/journal/TradeLog.jsx'));
 const Analytics    = lazy(() => import('./components/analytics/Analytics.jsx'));
-const AICoach      = lazy(() => import('./components/analytics/AICoach.jsx'));
 const Playbook     = lazy(() => import('./components/playbook/Playbook.jsx'));
 const Settings     = lazy(() => import('./components/settings/Settings.jsx'));
 const DailyNotes   = lazy(() => import('./components/journal/DailyNotes.jsx'));
@@ -20,7 +19,7 @@ const InvestorView = lazy(() => import('./components/investor/InvestorView.jsx')
 
 const VIEW_TITLES = {
   dashboard:'Dashboard', journal:'Trade Log', analytics:'Analytics',
-  coach:'AI Coach', playbook:'ICT Playbook', daily:'Daily Journal', mt5:'MT5 Sync',
+  playbook:'ICT Playbook', daily:'Daily Journal', mt5:'MT5 Sync',
   investor:'Investor View', settings:'Settings',
 };
 
