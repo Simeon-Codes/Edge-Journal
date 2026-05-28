@@ -283,21 +283,36 @@ export const InvestorLinks = {
   },
 
   async create({ label, showPnl = true, showLotSize = false, expiresAt = null }) {
-    const user  = pb.authStore.model;
+    const user = pb.authStore.model;
+    if (!user) throw new Error('Not authenticated');
+
     const token = generateSecureToken(32);
 
-    // Field names use snake_case to match PocketBase collection schema exactly.
-    // InvestorView.jsx passes { label, showPnl, showLotSize } — we map here.
-    return pb.collection('investor_links').create({
+    // All bool fields sent explicitly as true/false — PocketBase required:true
+    // fields reject undefined or missing values with a 400 error.
+    const payload = {
       user:          user.id,
       token,
       label:         sanitise(label, 60),
       is_active:     true,
       views:         0,
-      show_pnl:      Boolean(showPnl),
-      show_lot_size: Boolean(showLotSize),
-      expires_at:    expiresAt || null,
-    });
+      show_pnl:      showPnl  === true || showPnl  === 'true'  ? true : false,
+      show_lot_size: showLotSize === true || showLotSize === 'true' ? true : false,
+    };
+    // Only include optional date if provided — sending null to a date field
+    // can cause schema validation errors in some PocketBase versions
+    if (expiresAt) payload.expires_at = expiresAt;
+
+    try {
+      return await pb.collection('investor_links').create(payload);
+    } catch (err) {
+      // Surface the actual PocketBase validation message so it's visible in the UI
+      // instead of the generic "Failed to create record"
+      const detail = err?.data?.data
+        ? Object.entries(err.data.data).map(([k,v]) => `${k}: ${v?.message||v}`).join(', ')
+        : err?.data?.message || err?.message || 'Unknown error';
+      throw new Error(detail);
+    }
   },
 
   async toggle(id, isActive) {
