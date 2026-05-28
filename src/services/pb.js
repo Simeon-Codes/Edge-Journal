@@ -295,7 +295,7 @@ export const InvestorLinks = {
       token,
       label:         sanitise(label, 60),
       is_active:     true,
-      views:         0,
+      views:         1,  // PocketBase rejects 0 for required number fields (treats as blank)
       show_pnl:      showPnl  === true || showPnl  === 'true'  ? true : false,
       show_lot_size: showLotSize === true || showLotSize === 'true' ? true : false,
     };

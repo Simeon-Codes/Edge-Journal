@@ -5,7 +5,7 @@ import { useNotify } from '../../contexts/ToastContext.jsx';
 
 export default function InvestorView() {
   const { theme: t } = useTheme();
-  const notify = useNotify();
+  const notify = useNotify(); // { success, error, info, warn }
   const [links, setLinks]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -30,11 +30,11 @@ export default function InvestorView() {
       const d = await InvestorLinks.list();
       setLinks(d.items || []);
       setForm({ label:'', showPnl:true, showLotSize:false });
-      notify('Investor link created', 'success');
+      notify.success('Investor link created');
     } catch (err) {
       const msg = err?.data?.message || err?.message || 'Failed to create link';
       setError(msg);
-      notify(msg, 'error');
+      notify.error(msg);
       console.error('[EDGE] InvestorLinks.create error:', err);
     } finally {
       setCreating(false);

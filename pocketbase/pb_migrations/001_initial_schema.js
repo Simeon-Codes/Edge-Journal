@@ -187,7 +187,7 @@ migrate(function(app) {
       { name: "show_lot_size",  type: "bool",   required: true },
       { name: "expires_at",     type: "date",   required: false },
       { name: "last_viewed_at", type: "date",   required: false },
-      { name: "views",          type: "number", required: true,  min: 0 },
+      { name: "views",          type: "number", required: false, min: 0, default: 0 },
       { name: "password_hash",  type: "text",   required: false, max: 255 },
     ],
   });

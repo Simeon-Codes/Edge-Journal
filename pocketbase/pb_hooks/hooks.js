@@ -26,10 +26,37 @@ function hashKey(key) {
   return crypto.createHash("sha256").update(key + salt).digest("hex");
 }
 
-// ── Security headers on every response ───────────────────────────────────────
+// ── CORS + Security headers on every response ────────────────────────────────
+// ALLOWED_ORIGINS: add any frontend domain that needs to talk to this backend.
+// Vercel deploys get a *.vercel.app subdomain — add your specific one here.
+// When you go live on a custom domain, add that too.
+var ALLOWED_ORIGINS = [
+  "https://edge-journal-sepia.vercel.app",   // current Vercel deployment
+  "http://localhost:5173",                    // local dev (Vite default port)
+  "http://localhost:4173",                    // local preview
+];
+
 routerAdd("USE", "/*", (c) => {
+  var origin = c.request().header.get("Origin") || "";
+
+  // Set CORS headers for known origins
+  if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+    c.response().header().set("Access-Control-Allow-Origin",  origin);
+    c.response().header().set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    c.response().header().set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Token");
+    c.response().header().set("Access-Control-Allow-Credentials", "true");
+    c.response().header().set("Vary", "Origin");
+  }
+
+  // Handle preflight OPTIONS requests — must return 200 immediately
+  if (c.request().method === "OPTIONS") {
+    c.response().writer().writeHeader(204);
+    return;
+  }
+
+  // Security headers
   c.response().header().set("X-Content-Type-Options", "nosniff");
-  c.response().header().set("X-Frame-Options", "DENY");
+  c.response().header().set("X-Frame-Options", "SAMEORIGIN");
   c.response().header().set("X-XSS-Protection", "1; mode=block");
   c.response().header().set("Referrer-Policy", "strict-origin-when-cross-origin");
   c.response().header().set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
