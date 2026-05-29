@@ -169,9 +169,13 @@ export const Profiles = {
     const user = pb.authStore.model;
     if (!user) throw new Error('Not authenticated');
 
+    // No client-side user filter needed — the collection listRule
+    // (AUTH_OWN = "@request.auth.id != '' && user = @request.auth.id")
+    // already scopes results to the authenticated user. Adding a redundant
+    // filter causes a 400 on PocketBase v0.23+.
     const query = async () => {
       const res = await pb.collection('profiles').getList(1, 1, {
-        filter: `user="${user.id}"`,
+        sort: '-created',
       });
       return res.items[0] || null;
     };
@@ -180,8 +184,7 @@ export const Profiles = {
     const profile = await query();
     if (profile) return profile;
 
-    // If nothing came back — could be a hook race on a fresh registration.
-    // Wait 2 seconds and try once more before returning null.
+    // Race condition guard — wait 2s and retry once for fresh registrations
     await new Promise(resolve => setTimeout(resolve, 2000));
     return query();
   },
@@ -204,13 +207,11 @@ export const Profiles = {
 // ── Trades ────────────────────────────────────────────────────────────────────
 export const Trades = {
   async list({ page = 1, perPage = 50, filter = '', sort = '-trade_date' } = {}) {
-    const user = pb.authStore.model;
-    const userFilter  = `user="${user.id}"`;
-    const finalFilter = filter ? `(${userFilter})&&(${filter})` : userFilter;
-
+    // listRule (AUTH_OWN) scopes to current user automatically.
+    // Only pass additional filter if provided (e.g. pair filter from TradeLog).
     return pb.collection('trades').getList(page, perPage, {
       sort,
-      filter:  finalFilter,
+      ...(filter ? { filter } : {}),
       expand: 'mt5_account',
     });
   },
@@ -275,10 +276,9 @@ export const Trades = {
 // ── Investor Links ────────────────────────────────────────────────────────────
 export const InvestorLinks = {
   async list() {
-    const user = pb.authStore.model;
+    // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('investor_links').getList(1, 50, {
-      filter: `user="${user.id}"`,
-      sort:   '-created',
+      sort: '-created',
     });
   },
 
@@ -331,9 +331,9 @@ export const InvestorLinks = {
 // ── MT5 Accounts ──────────────────────────────────────────────────────────────
 export const MT5Accounts = {
   async list() {
-    const user = pb.authStore.model;
+    // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('mt5_accounts').getList(1, 50, {
-      filter: `user="${user.id}"`,
+      sort: '-created',
     });
   },
 
@@ -367,10 +367,9 @@ export const MT5Accounts = {
 // ── Journal Entries ───────────────────────────────────────────────────────────
 export const JournalEntries = {
   async list(page = 1) {
-    const user = pb.authStore.model;
+    // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('journal_entries').getList(page, 30, {
-      filter: `user="${user.id}"`,
-      sort:   '-entry_date',
+      sort: '-entry_date',
     });
   },
 
