@@ -1,29 +1,44 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { InvestorLinks } from '../../services/pb.js';
+import { useNotify } from '../../contexts/ToastContext.jsx';
 
 export default function InvestorView() {
   const { theme: t } = useTheme();
-  const [links, setLinks]   = useState([]);
+  const notify = useNotify(); // { success, error, info, warn }
+  const [links, setLinks]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState('');
+  const [error, setError]     = useState(null);
+  const [copied, setCopied]   = useState('');
   const [creating, setCreating] = useState(false);
-  const [form, setForm]     = useState({ label:'', showPnl:true, showLotSize:false });
+  const [form, setForm]       = useState({ label:'', showPnl:true, showLotSize:false });
 
   useEffect(() => {
     InvestorLinks.list().then(d => { setLinks(d.items||[]); setLoading(false); }).catch(()=>setLoading(false));
   }, []);
 
   const handleCreate = async () => {
-    if (!form.label) return;
+    if (!form.label.trim()) return;
     setCreating(true);
+    setError(null);
     try {
-      await InvestorLinks.create(form);
+      await InvestorLinks.create({
+        label:       form.label.trim(),
+        showPnl:     form.showPnl,
+        showLotSize: form.showLotSize,
+      });
       const d = await InvestorLinks.list();
-      setLinks(d.items||[]);
+      setLinks(d.items || []);
       setForm({ label:'', showPnl:true, showLotSize:false });
-    } catch {}
-    setCreating(false);
+      notify.success('Investor link created');
+    } catch (err) {
+      const msg = err?.data?.message || err?.message || 'Failed to create link';
+      setError(msg);
+      notify.error(msg);
+      console.error('[EDGE] InvestorLinks.create error:', err);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const copy = (text, id) => {
@@ -51,7 +66,12 @@ export default function InvestorView() {
           </div>
         </div>
 
-        <button onClick={handleCreate} disabled={creating||!form.label} style={{ padding:'11px 20px', background:creating||!form.label?t.textMuted:`linear-gradient(135deg,${t.accent},#00b87d)`, border:'none', borderRadius:8, color:'#0c0e1a', fontFamily:'inherit', fontWeight:800, fontSize:13, cursor:creating||!form.label?'not-allowed':'pointer' }}>
+        {error && (
+          <div style={{ background:'rgba(255,77,109,0.1)', border:'1px solid rgba(255,77,109,0.3)', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#ff4d6d', marginBottom:12 }}>
+            ⚠ {error}
+          </div>
+        )}
+        <button onClick={handleCreate} disabled={creating||!form.label.trim()} style={{ padding:'11px 20px', background:creating||!form.label?t.textMuted:`linear-gradient(135deg,${t.accent},#00b87d)`, border:'none', borderRadius:8, color:'#0c0e1a', fontFamily:'inherit', fontWeight:800, fontSize:13, cursor:creating||!form.label?'not-allowed':'pointer' }}>
           {creating ? 'Generating...' : 'Generate Investor Link'}
         </button>
       </div>

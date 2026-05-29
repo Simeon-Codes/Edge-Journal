@@ -200,7 +200,10 @@ export default function AICoach({ trades }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? token : '',
+          // PocketBase pb_hooks read the Authorization header directly.
+          // The SDK stores the token as a raw JWT string (no "Bearer " prefix needed
+          // for PocketBase's own auth middleware, but hooks.js reads it raw).
+          'Authorization': token || '',
         },
         body: JSON.stringify({ stats }),
       });

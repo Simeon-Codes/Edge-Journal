@@ -4,16 +4,28 @@ import { pb, Auth, Profiles } from '../services/pb.js';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]           = useState(null);
+  const [profile, setProfile]     = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const loadProfile = useCallback(async () => {
+    setProfileLoading(true);
     try {
       const p = await Profiles.getMine();
       setProfile(p);
-    } catch {
+      // p can still be null here if both attempts in getMine() returned nothing.
+      // This should be extremely rare — only if Railway is down AND the fallback
+      // client-side create in register() also failed. The app will render in a
+      // degraded state (tier 0, no settings) but won't crash.
+      if (!p) {
+        console.warn('[EDGE] Profile not found after retries — rendering in degraded state');
+      }
+    } catch (err) {
+      console.error('[EDGE] loadProfile error:', err);
       setProfile(null);
+    } finally {
+      setProfileLoading(false);
     }
   }, []);
 
@@ -81,15 +93,13 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, profile, loading,
+      user, profile, loading, profileLoading,
       login, register, logout,
       updateProfile, refreshProfile,
-      isLoggedIn: !!user,
-      tier: profile?.tier ?? 0,
+      isLoggedIn:         !!user,
+      tier:               profile?.tier ?? 0,
       subscriptionStatus: profile?.subscription_status ?? 'trial',
-      // Expose the raw JWT token so components like AICoach can pass it
-      // directly to custom PocketBase endpoints via Authorization header.
-      token: Auth.getToken ? Auth.getToken() : null,
+      token: pb.authStore.token || null,
     }}>
       {children}
     </AuthContext.Provider>

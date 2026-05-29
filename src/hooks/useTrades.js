@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Trades, computeStats } from '../services/pb.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 

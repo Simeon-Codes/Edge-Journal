@@ -68,7 +68,7 @@ function generateSecureToken(len = 32) {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const Auth = {
   async register({ email, password, passwordConfirm, displayName }) {
-    // Client-side validation — gives instant feedback before any network call
+    // ── Client-side validation — instant feedback before any network call ────────
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       throw new Error('Invalid email address');
     if (!password || password.length < 8)
@@ -78,6 +78,7 @@ export const Auth = {
     if (!displayName || displayName.trim().length < 2)
       throw new Error('Display name must be at least 2 characters');
 
+    // ── Step 1: Create the user record ───────────────────────────────────────────
     await pb.collection('users').create({
       email:           sanitise(email, 200).toLowerCase(),
       password,
@@ -85,8 +86,48 @@ export const Auth = {
       name:            sanitise(displayName, 60),
     });
 
-    // Auto-login after registration — same flow as before
-    return this.login({ email, password });
+    // ── Step 2: Authenticate immediately ────────────────────────────────────────
+    const authData = await this.login({ email, password });
+
+    // ── Step 3: Guarantee the profile record exists ──────────────────────────────
+    // The server-side hook (pb_hooks/hooks.js onRecordAfterCreateRequest) creates
+    // the profile automatically. However two failure modes exist:
+    //   a) Race condition — the frontend calls getMine() before the hook completes.
+    //   b) Hook silently fails — collection schema mismatch, hook error, etc.
+    //
+    // Strategy: wait 1.5s for the hook, then check. If the profile still does not
+    // exist, create it client-side as a guaranteed fallback. This makes registration
+    // deterministic regardless of backend hook timing or failure.
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    try {
+      const existing = await Profiles.getMine();
+
+      if (!existing) {
+        // Hook did not fire or lost the race — create the profile ourselves.
+        // Fields match exactly what pb_hooks/hooks.js sets so the app behaves
+        // identically whether the hook created the record or we did.
+        await pb.collection('profiles').create({
+          user:                  pb.authStore.model.id,
+          display_name:          sanitise(displayName, 60),
+          tier:                  0,
+          subscription_status:   'trial',
+          trial_ends_at:         new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+          investor_link_enabled: false,
+          theme:                 'system',
+          sidebar_collapsed:     false,
+          ads_enabled:           true,
+          default_lot_size:      0.01,
+          default_currency:      'USD',
+        });
+      }
+    } catch (profileErr) {
+      // Profile check/creation failed — do not block the user.
+      // AuthContext.loadProfile() retries on next render.
+      console.error('[EDGE] Profile guarantee failed after registration:', profileErr);
+    }
+
+    return authData;
   },
 
   async login({ email, password }) {
@@ -128,10 +169,24 @@ export const Profiles = {
     const user = pb.authStore.model;
     if (!user) throw new Error('Not authenticated');
 
-    const res = await pb.collection('profiles').getList(1, 1, {
-      filter: `user="${user.id}"`,
-    });
-    return res.items[0] || null;
+    // No client-side user filter needed — the collection listRule
+    // (AUTH_OWN = "@request.auth.id != '' && user = @request.auth.id")
+    // already scopes results to the authenticated user. Adding a redundant
+    // filter causes a 400 on PocketBase v0.23+.
+    const query = async () => {
+      const res = await pb.collection('profiles').getList(1, 1, {
+        sort: '-created',
+      });
+      return res.items[0] || null;
+    };
+
+    // First attempt
+    const profile = await query();
+    if (profile) return profile;
+
+    // Race condition guard — wait 2s and retry once for fresh registrations
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return query();
   },
 
   async update(profileId, updates) {
@@ -152,13 +207,11 @@ export const Profiles = {
 // ── Trades ────────────────────────────────────────────────────────────────────
 export const Trades = {
   async list({ page = 1, perPage = 50, filter = '', sort = '-trade_date' } = {}) {
-    const user = pb.authStore.model;
-    const userFilter  = `user="${user.id}"`;
-    const finalFilter = filter ? `(${userFilter})&&(${filter})` : userFilter;
-
+    // listRule (AUTH_OWN) scopes to current user automatically.
+    // Only pass additional filter if provided (e.g. pair filter from TradeLog).
     return pb.collection('trades').getList(page, perPage, {
       sort,
-      filter:  finalFilter,
+      ...(filter ? { filter } : {}),
       expand: 'mt5_account',
     });
   },
@@ -223,27 +276,43 @@ export const Trades = {
 // ── Investor Links ────────────────────────────────────────────────────────────
 export const InvestorLinks = {
   async list() {
-    const user = pb.authStore.model;
+    // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('investor_links').getList(1, 50, {
-      filter: `user="${user.id}"`,
-      sort:   '-created',
+      sort: '-created',
     });
   },
 
   async create({ label, showPnl = true, showLotSize = false, expiresAt = null }) {
-    const user  = pb.authStore.model;
+    const user = pb.authStore.model;
+    if (!user) throw new Error('Not authenticated');
+
     const token = generateSecureToken(32);
 
-    return pb.collection('investor_links').create({
+    // All bool fields sent explicitly as true/false — PocketBase required:true
+    // fields reject undefined or missing values with a 400 error.
+    const payload = {
       user:          user.id,
       token,
       label:         sanitise(label, 60),
       is_active:     true,
-      views:         0,
-      show_pnl:      showPnl,
-      show_lot_size: showLotSize,
-      expires_at:    expiresAt,
-    });
+      views:         1,  // PocketBase rejects 0 for required number fields (treats as blank)
+      show_pnl:      showPnl  === true || showPnl  === 'true'  ? true : false,
+      show_lot_size: showLotSize === true || showLotSize === 'true' ? true : false,
+    };
+    // Only include optional date if provided — sending null to a date field
+    // can cause schema validation errors in some PocketBase versions
+    if (expiresAt) payload.expires_at = expiresAt;
+
+    try {
+      return await pb.collection('investor_links').create(payload);
+    } catch (err) {
+      // Surface the actual PocketBase validation message so it's visible in the UI
+      // instead of the generic "Failed to create record"
+      const detail = err?.data?.data
+        ? Object.entries(err.data.data).map(([k,v]) => `${k}: ${v?.message||v}`).join(', ')
+        : err?.data?.message || err?.message || 'Unknown error';
+      throw new Error(detail);
+    }
   },
 
   async toggle(id, isActive) {
@@ -262,9 +331,9 @@ export const InvestorLinks = {
 // ── MT5 Accounts ──────────────────────────────────────────────────────────────
 export const MT5Accounts = {
   async list() {
-    const user = pb.authStore.model;
+    // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('mt5_accounts').getList(1, 50, {
-      filter: `user="${user.id}"`,
+      sort: '-created',
     });
   },
 
@@ -298,10 +367,9 @@ export const MT5Accounts = {
 // ── Journal Entries ───────────────────────────────────────────────────────────
 export const JournalEntries = {
   async list(page = 1) {
-    const user = pb.authStore.model;
+    // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('journal_entries').getList(page, 30, {
-      filter: `user="${user.id}"`,
-      sort:   '-entry_date',
+      sort: '-entry_date',
     });
   },
 

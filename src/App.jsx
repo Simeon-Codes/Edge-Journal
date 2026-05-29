@@ -24,7 +24,7 @@ const VIEW_TITLES = {
 };
 
 export default function App() {
-  const { user, loading }    = useAuth();
+  const { user, loading, profileLoading } = useAuth();
   const { theme: t }         = useTheme();
   const notify               = useNotify();
   const { trades, stats, addTrade, editTrade, removeTrade, uploadImages, getImageUrl } = useTrades();
@@ -93,7 +93,7 @@ export default function App() {
     }
   };
 
-  if (loading) return <Splash t={t} />;
+  if (loading || profileLoading) return <Splash t={t} />;
   if (!user)   return <AuthScreen />;
 
   return (
