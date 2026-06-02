@@ -1,7 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 // ─── EDGE Journal — PocketBase Server Hooks ───────────────────────────────────
-const crypto = require("crypto");
+// No require() — PocketBase hooks run in goja (not Node.js)
 
 // ── In-memory rate limiter ────────────────────────────────────────────────────
 const rl = new Map();
@@ -23,7 +23,7 @@ function san(str, max = 500) {
 // ── Hash API key with server salt ─────────────────────────────────────────────
 function hashKey(key) {
   const salt = $app.settings().meta.senderAddress || "edge_salt";
-  return crypto.createHash("sha256").update(key + salt).digest("hex");
+  return $security.sha256(key + salt);
 }
 
 // ── CORS + Security headers on every response ────────────────────────────────

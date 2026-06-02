@@ -109,53 +109,84 @@ export default function Settings() {
         </Card>
       )}
 
-      {/* ── Investor tab ────────────────────────────────────────────────── */}
-      {tab === 'investor' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Card t={t}>
-            <SectionTitle t={t}>Create Investor Link</SectionTitle>
-            <div style={{ fontSize: 12, color: t.textMuted, marginBottom: 14, lineHeight: 1.7 }}>
-              Generate a read-only shareable link so investors or followers can view your trading performance without accessing your account.
-            </div>
-            <Field2 label="Link Label" t={t}>
-              <input style={inp(t)} placeholder="e.g. My Trading Results Q1" value={newLink.label} onChange={e => setNewLink(v => ({ ...v, label: e.target.value }))} />
-            </Field2>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-              <Toggle label="Show P&L" checked={newLink.showPnl} onChange={v => setNewLink(x => ({ ...x, showPnl: v }))} t={t} />
-              <Toggle label="Show Lot Sizes" checked={newLink.showLotSize} onChange={v => setNewLink(x => ({ ...x, showLotSize: v }))} t={t} />
-            </div>
-            <button onClick={createInvestorLink} disabled={saving || !newLink.label} style={primaryBtn(t, saving || !newLink.label)}>
-              {saving ? 'Creating...' : 'Generate Investor Link'}
-            </button>
-          </Card>
+      // ── State (add these alongside your other useState hooks at the top of Settings()) ──
+const [newLink, setNewLink] = useState({ label: '', showPnl: true, showLotSize: false });
+const [investorLinks, setInvestorLinks] = useState([]);
+const [saving, setSaving] = useState(false);
+const [copied, setCopied] = useState(null);
 
-          {investorLinks.map(link => (
-            <Card key={link.id} t={t}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ color: t.textStrong, fontWeight: 700 }}>{link.label || 'Unnamed Link'}</div>
-                  <div style={{ fontSize: 10, color: t.textMuted, marginTop: 3 }}>{link.views} views · {link.show_pnl ? 'P&L visible' : 'P&L hidden'}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <StatusBadge active={link.is_active} t={t} />
-                  <button onClick={() => InvestorLinks.toggle(link.id, !link.is_active).then(loadInvestorLinks)} style={{ fontSize: 11, padding: '4px 10px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: 6, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    {link.is_active ? 'Disable' : 'Enable'}
-                  </button>
-                </div>
-              </div>
-              <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div style={{ flex: 1, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 11, color: t.textMuted, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {InvestorLinks.getShareUrl(link.token)}
-                </div>
-                <button onClick={() => copyToClipboard(InvestorLinks.getShareUrl(link.token), link.id)} style={{ ...primaryBtn(t), padding: '8px 14px', fontSize: 11 }}>
-                  {copied === link.id ? '✓ Copied' : 'Copy'}
-                </button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+// ── Helper: load all investor links for this user ──
+async function loadInvestorLinks() {
+  try {
+    const records = await pb.collection('investor_links').getFullList({
+      filter: `user = "${pb.authStore.record.id}"`,
+      sort: '-created',
+    });
+    setInvestorLinks(records);
+  } catch (err) {
+    console.error('Failed to load investor links', err);
+  }
+}
 
+// ── Load on mount ──
+useEffect(() => {
+  loadInvestorLinks();
+}, []);
+
+// ── Create investor link ──
+async function createInvestorLink() {
+  if (!newLink.label || saving) return;
+  setSaving(true);
+  try {
+    // 1. Generate a raw random token (this is what goes in the shareable URL)
+    const token = crypto.randomUUID();
+
+    // 2. SHA-256 hash it — only the hash is stored in the DB
+    const msgBuffer = new TextEncoder().encode(token);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashHex = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    // 3. Save to PocketBase
+    await pb.collection('investor_links').create({
+      user:         pb.authStore.record.id,
+      label:        newLink.label.trim(),
+      token:        token,      // raw token stored so you can build the share URL
+      api_key_hash: hashHex,   // hashed token stored for server-side verification
+      show_pnl:     newLink.showPnl,
+      show_lot_size: newLink.showLotSize,
+      is_active:    true,
+      views:        0,
+    });
+
+    // 4. Reset form and reload list
+    setNewLink({ label: '', showPnl: true, showLotSize: false });
+    await loadInvestorLinks();
+  } catch (err) {
+    console.error('Failed to create investor link', err);
+    alert('Failed to create investor link: ' + (err?.message ?? 'Unknown error'));
+  } finally {
+    setSaving(false);
+  }
+}
+
+// ── Copy to clipboard ──
+async function copyToClipboard(text, id) {
+  await navigator.clipboard.writeText(text);
+  setCopied(id);
+  setTimeout(() => setCopied(null), 2000);
+}
+
+// ── InvestorLinks helpers ──
+const InvestorLinks = {
+  getShareUrl: (token) =>
+    `${window.location.origin}/investor?token=${token}`,
+
+  toggle: async (id, isActive) => {
+    await pb.collection('investor_links').update(id, { is_active: isActive });
+  },
+};
       {/* ── MT5 tab ─────────────────────────────────────────────────────── */}
       {tab === 'mt5' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
