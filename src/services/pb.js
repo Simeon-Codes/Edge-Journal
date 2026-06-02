@@ -108,7 +108,7 @@ export const Auth = {
         // Fields match exactly what pb_hooks/hooks.js sets so the app behaves
         // identically whether the hook created the record or we did.
         await pb.collection('profiles').create({
-          user:                  pb.authStore.model.id,
+          user:                  pb.authStore.record.id,
           display_name:          sanitise(displayName, 60),
           tier:                  0,
           subscription_status:   'trial',
@@ -149,7 +149,7 @@ export const Auth = {
   },
 
   getModel() {
-    return pb.authStore.model || null;
+    return pb.authStore.record || null;
   },
 
   isLoggedIn() {
@@ -166,7 +166,7 @@ export const Auth = {
 // ── Profiles ──────────────────────────────────────────────────────────────────
 export const Profiles = {
   async getMine() {
-    const user = pb.authStore.model;
+    const user = pb.authStore.record;
     if (!user) throw new Error('Not authenticated');
 
     // No client-side user filter needed — the collection listRule
@@ -221,7 +221,7 @@ export const Trades = {
   },
 
   async create(data) {
-    const user = pb.authStore.model;
+    const user = pb.authStore.record;
     return pb.collection('trades').create({
       ...sanitiseTrade(data),
       user:   user.id,
@@ -283,7 +283,7 @@ export const InvestorLinks = {
   },
 
   async create({ label, showPnl = true, showLotSize = false, expiresAt = null }) {
-    const user = pb.authStore.model;
+    const user = pb.authStore.record;
     if (!user) throw new Error('Not authenticated');
 
     const token = generateSecureToken(32);
@@ -340,7 +340,7 @@ export const MT5Accounts = {
   // Returns { apiKey, record } — the plain-text key is shown once to the user
   // so they can paste it into the MT5 EA. The backend hook hashes it on save.
   async create({ label, mt5Login, broker, server }) {
-    const user   = pb.authStore.model;
+    const user   = pb.authStore.record;
     const apiKey = generateSecureToken(40);
 
     const record = await pb.collection('mt5_accounts').create({
@@ -374,7 +374,7 @@ export const JournalEntries = {
   },
 
   async upsert(data) {
-    const user = pb.authStore.model;
+    const user = pb.authStore.record;
     const safe = {
       user:         user.id,
       entry_date:   sanitise(data.entry_date, 20),

@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
     const restore = async () => {
       try {
         if (pb.authStore.isValid) {
-          setUser(pb.authStore.model);
+          setUser(pb.authStore.record);
           await loadProfile();
         }
       } finally {
