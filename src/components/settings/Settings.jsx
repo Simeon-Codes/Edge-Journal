@@ -43,8 +43,19 @@ const loadInvestorLinks = async () => {
   }
 };
   const loadMt5Accounts = async () => {
-    try { const d = await MT5Accounts.list(); setMt5Accounts(d.items || []); } catch {}
-  };
+  const userId = pb.authStore.record?.id;
+  if (!userId) return;
+
+  try {
+    const records = await pb.collection('mt5_accounts').getFullList({
+      filter: `user = "${userId}"`,
+      sort: '-created',
+    });
+    setMt5Accounts(records);
+  } catch (err) {
+    console.error('Failed to load MT5 accounts', err);
+  }
+};
 
   const createInvestorLink = async () => {
     setSaving(true);
@@ -182,6 +193,39 @@ const InvestorLinks = {
     await pb.collection('investor_links').update(id, { is_active: isActive });
   },
 };
+async function createMt5Account() {
+  const userId = pb.authStore.record?.id;
+  if (!userId) return;
+
+  setSaving(true);
+  try {
+    const rawKey = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
+    const msgBuffer = new TextEncoder().encode(rawKey);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashHex = Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+
+    await pb.collection('mt5_accounts').create({
+      user:          userId,
+      account_label: newMt5.label.trim(),
+      mt5_login:     newMt5.mt5Login.trim(),
+      broker:        newMt5.broker.trim(),
+      server:        newMt5.server.trim(),
+      api_key_hash:  hashHex,
+      is_active:     true,
+      sync_enabled:  true,
+    });
+
+    setGeneratedKey(rawKey);
+    setNewMt5({ label: '', mt5Login: '', broker: '', server: '' });
+    await loadMt5Accounts();
+  } catch (err) {
+    console.error('Failed to create MT5 account', err);
+  } finally {
+    setSaving(false);
+  }
+}
       {/* ── MT5 tab ─────────────────────────────────────────────────────── */}
       {tab === 'mt5' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -218,6 +262,7 @@ const InvestorLinks = {
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1, background: t.bg, border: `1px solid ${t.yellow}40`, borderRadius: 8, padding: '10px 12px', fontFamily: 'monospace', fontSize: 12, color: t.textStrong, wordBreak: 'break-all' }}>
                   {generatedKey}
+				  const [generatedKey, setGeneratedKey] = useState(null);
                 </div>
                 <button onClick={() => copyToClipboard(generatedKey, 'key')} style={{ ...primaryBtn(t), padding: '10px 14px' }}>
                   {copied === 'key' ? '✓' : 'Copy'}
