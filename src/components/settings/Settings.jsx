@@ -22,7 +22,6 @@ export default function Settings() {
   const [saving, setSaving]     = useState(false);
   const [msg, setMsg]           = useState('');
   const [copied, setCopied]     = useState('');
-  const [generatedKey, setGeneratedKey] = useState(null);
 
  useEffect(() => {
   if (tab === 'investor' && pb.authStore.isValid) loadInvestorLinks();
@@ -58,31 +57,6 @@ const loadInvestorLinks = async () => {
   }
 };
 
-  const createInvestorLink = async () => {
-    setSaving(true);
-    try {
-      await InvestorLinks.create(newLink);
-      await loadInvestorLinks();
-      setNewLink({ label: '', showPnl: true, showLotSize: false });
-      setMsg('Investor link created');
-    } catch (e) { setMsg(e.message); }
-    setSaving(false);
-  };
-
-  const createMt5Account = async () => {
-    setSaving(true);
-    try {
-      const { apiKey, record } = await MT5Accounts.create(newMt5);
-      setGeneratedKey(apiKey);
-      await loadMt5Accounts();
-      setNewMt5({ label: '', mt5Login: '', broker: '', server: '' });
-    } catch (e) { setMsg(e.message); }
-    setSaving(false);
-  };
-
-  const copyToClipboard = (text, key) => {
-    navigator.clipboard.writeText(text).then(() => { setCopied(key); setTimeout(() => setCopied(''), 2000); });
-  };
 
   const TABS = [
     { id: 'account',    label: '◉ Account'    },
