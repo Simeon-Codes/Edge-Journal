@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { MT5Accounts } from '../../services/pb.js';
 import { TIER_LIMITS } from '../../hooks/useTrades.js';
-import pb from '../../services/pb.js';
+import { pb } from '../../services/pb.js';
 
 // ── Tier config ───────────────────────────────────────────────────────────────
 const TIER_PRICES = { 0: 'Free (14 days)', 1: 'Free forever', 2: '$19/mo', 3: '$39/mo', 4: '$69/mo' };
