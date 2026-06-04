@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
-import { MT5Accounts } from '../../services/pb.js';
+import { pb, InvestorLinks, MT5Accounts } from '../../services/pb.js';
 import { TIER_LIMITS } from '../../hooks/useTrades.js';
-import { pb } from '../../services/pb.js';
 
 // ── Tier config ───────────────────────────────────────────────────────────────
 const TIER_PRICES = { 0: 'Free (14 days)', 1: 'Free forever', 2: '$19/mo', 3: '$39/mo', 4: '$69/mo' };
@@ -18,56 +17,45 @@ const TABS = [
   { id: 'display',  label: '◈ Display'  },
 ];
 
-// ── Shared hashing utility ────────────────────────────────────────────────────
-async function sha256Hex(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// ── Investor link share URL helper ───────────────────────────────────────────
-function getShareUrl(token) {
-  return `${window.location.origin}/investor?token=${token}`;
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Settings() {
   const { user, profile, tier, updateProfile, subscriptionStatus } = useAuth();
   const { theme: t, setTheme, preference } = useTheme();
 
-  const [tab, setTab]                   = useState('account');
-  const [msg, setMsg]                   = useState('');
-  const [saving, setSaving]             = useState(false);
-  const [copied, setCopied]             = useState('');
+  const [tab, setTab]       = useState('account');
+  const [msg, setMsg]       = useState('');
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState('');
 
   // Investor link state
   const [investorLinks, setInvestorLinks] = useState([]);
   const [newLink, setNewLink]             = useState({ label: '', showPnl: true, showLotSize: false });
 
   // MT5 state
-  const [mt5Accounts, setMt5Accounts] = useState([]);
-  const [newMt5, setNewMt5]           = useState({ label: '', mt5Login: '', broker: '', server: '' });
-  const [generatedKey, setGeneratedKey] = useState(null);
+  const [mt5Accounts, setMt5Accounts]     = useState([]);
+  const [newMt5, setNewMt5]               = useState({ label: '', mt5Login: '', broker: '', server: '' });
+  const [generatedKey, setGeneratedKey]   = useState(null);
 
-  // ── Data loaders ─────────────────────────────────────────────────────────────
+  // ── Data loaders ──────────────────────────────────────────────────────────────
   const loadInvestorLinks = useCallback(async () => {
-  if (!pb.authStore.isValid) return;
-  try {
-    const result = await InvestorLinks.list();
-    setInvestorLinks(result.items || []);
-  } catch (err) {
-    console.error('Failed to load investor links:', err);
-  }
-}, []);
+    if (!pb.authStore.isValid) return;
+    try {
+      const result = await InvestorLinks.list();
+      setInvestorLinks(result.items || []);
+    } catch (err) {
+      console.error('Failed to load investor links:', err);
+    }
+  }, []);
 
-const loadMt5Accounts = useCallback(async () => {
-  if (!pb.authStore.isValid) return;
-  try {
-    const result = await MT5Accounts.list();
-    setMt5Accounts(result.items || []);
-  } catch (err) {
-    console.error('Failed to load MT5 accounts:', err);
-  }
-}, []);
+  const loadMt5Accounts = useCallback(async () => {
+    if (!pb.authStore.isValid) return;
+    try {
+      const result = await MT5Accounts.list();
+      setMt5Accounts(result.items || []);
+    } catch (err) {
+      console.error('Failed to load MT5 accounts:', err);
+    }
+  }, []);
 
   useEffect(() => {
     if (!pb.authStore.isValid) return;
@@ -77,31 +65,29 @@ const loadMt5Accounts = useCallback(async () => {
 
   // ── Actions ───────────────────────────────────────────────────────────────────
   async function createInvestorLink() {
-  if (!newLink.label.trim() || saving) return;
-  if (!pb.authStore.isValid) return;
-
-  setSaving(true);
-  try {
-    await InvestorLinks.create({
-      label:      newLink.label,
-      showPnl:    newLink.showPnl,
-      showLotSize: newLink.showLotSize,
-    });
-
-    setNewLink({ label: '', showPnl: true, showLotSize: false });
-    await loadInvestorLinks();
-  } catch (err) {
-    console.error('Failed to create investor link:', err);
-    setMsg('⚠ ' + (err?.message ?? 'Unknown error'));
-    setTimeout(() => setMsg(''), 4000);
-  } finally {
-    setSaving(false);
+    if (!newLink.label.trim() || saving) return;
+    if (!pb.authStore.isValid) return;
+    setSaving(true);
+    try {
+      await InvestorLinks.create({
+        label:       newLink.label,
+        showPnl:     newLink.showPnl,
+        showLotSize: newLink.showLotSize,
+      });
+      setNewLink({ label: '', showPnl: true, showLotSize: false });
+      await loadInvestorLinks();
+    } catch (err) {
+      console.error('Failed to create investor link:', err);
+      setMsg('⚠ ' + (err?.message ?? 'Unknown error'));
+      setTimeout(() => setMsg(''), 5000);
+    } finally {
+      setSaving(false);
+    }
   }
-}
 
   async function toggleInvestorLink(id, isActive) {
     try {
-      await pb.collection('investor_links').update(id, { is_active: isActive });
+      await InvestorLinks.toggle(id, isActive);
       await loadInvestorLinks();
     } catch (err) {
       console.error('Failed to toggle investor link:', err);
@@ -109,29 +95,27 @@ const loadMt5Accounts = useCallback(async () => {
   }
 
   async function createMt5Account() {
-  if (!newMt5.label.trim() || !newMt5.mt5Login.trim() || saving) return;
-  if (!pb.authStore.isValid) return;
-
-  setSaving(true);
-  try {
-    const { apiKey } = await MT5Accounts.create({
-      label:    newMt5.label,
-      mt5Login: newMt5.mt5Login,
-      broker:   newMt5.broker,
-      server:   newMt5.server,
-    });
-
-    setGeneratedKey(apiKey);
-    setNewMt5({ label: '', mt5Login: '', broker: '', server: '' });
-    await loadMt5Accounts();
-  } catch (err) {
-    console.error('Failed to create MT5 account:', err);
-    setMsg('⚠ Failed to generate API key: ' + (err?.message ?? 'Unknown error'));
-    setTimeout(() => setMsg(''), 4000);
-  } finally {
-    setSaving(false);
+    if (!newMt5.label.trim() || !newMt5.mt5Login.trim() || saving) return;
+    if (!pb.authStore.isValid) return;
+    setSaving(true);
+    try {
+      const { apiKey } = await MT5Accounts.create({
+        label:    newMt5.label,
+        mt5Login: newMt5.mt5Login,
+        broker:   newMt5.broker,
+        server:   newMt5.server,
+      });
+      setGeneratedKey(apiKey);
+      setNewMt5({ label: '', mt5Login: '', broker: '', server: '' });
+      await loadMt5Accounts();
+    } catch (err) {
+      console.error('Failed to create MT5 account:', err);
+      setMsg('⚠ Failed to generate API key: ' + (err?.message ?? 'Unknown error'));
+      setTimeout(() => setMsg(''), 5000);
+    } finally {
+      setSaving(false);
+    }
   }
-}
 
   async function removeMt5Account(id) {
     try {
@@ -152,26 +136,23 @@ const loadMt5Accounts = useCallback(async () => {
     } catch (err) {
       console.error('Failed to delete account:', err);
       setMsg('⚠ Failed to delete account: ' + (err?.message ?? 'Unknown error'));
-      setTimeout(() => setMsg(''), 4000);
+      setTimeout(() => setMsg(''), 5000);
     }
   }
 
   async function copyToClipboard(text, id) {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(id);
-      setTimeout(() => setCopied(null), 2000);
     } catch {
-      // fallback for older browsers
       const el = document.createElement('textarea');
       el.value = text;
       document.body.appendChild(el);
       el.select();
       document.execCommand('copy');
       document.body.removeChild(el);
-      setCopied(id);
-      setTimeout(() => setCopied(null), 2000);
     }
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -285,10 +266,10 @@ const loadMt5Accounts = useCallback(async () => {
               </div>
               <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div style={{ flex: 1, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: '8px 12px', fontSize: 11, color: t.textMuted, fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {link.token ? getShareUrl(link.token) : '— token missing —'}
+                  {link.token ? InvestorLinks.getShareUrl(link.token) : '— token missing —'}
                 </div>
                 <button
-                  onClick={() => link.token && copyToClipboard(getShareUrl(link.token), link.id)}
+                  onClick={() => link.token && copyToClipboard(InvestorLinks.getShareUrl(link.token), link.id)}
                   disabled={!link.token}
                   style={{ ...primaryBtn(t, !link.token), padding: '8px 14px', fontSize: 11 }}
                 >
