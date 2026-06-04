@@ -50,32 +50,24 @@ export default function Settings() {
 
   // ── Data loaders ─────────────────────────────────────────────────────────────
   const loadInvestorLinks = useCallback(async () => {
-    const userId = pb.authStore.record?.id;
-    if (!userId) return;
-    try {
-      const records = await pb.collection('investor_links').getFullList({
-        filter: `user = "${userId}"`,
-        sort: '-created',
-      });
-      setInvestorLinks(records);
-    } catch (err) {
-      console.error('Failed to load investor links:', err);
-    }
-  }, []);
+  if (!pb.authStore.isValid) return;
+  try {
+    const result = await InvestorLinks.list();
+    setInvestorLinks(result.items || []);
+  } catch (err) {
+    console.error('Failed to load investor links:', err);
+  }
+}, []);
 
-  const loadMt5Accounts = useCallback(async () => {
-    const userId = pb.authStore.record?.id;
-    if (!userId) return;
-    try {
-      const records = await pb.collection('mt5_accounts').getFullList({
-        filter: `user = "${userId}"`,
-        sort: '-created',
-      });
-      setMt5Accounts(records);
-    } catch (err) {
-      console.error('Failed to load MT5 accounts:', err);
-    }
-  }, []);
+const loadMt5Accounts = useCallback(async () => {
+  if (!pb.authStore.isValid) return;
+  try {
+    const result = await MT5Accounts.list();
+    setMt5Accounts(result.items || []);
+  } catch (err) {
+    console.error('Failed to load MT5 accounts:', err);
+  }
+}, []);
 
   useEffect(() => {
     if (!pb.authStore.isValid) return;
@@ -85,36 +77,27 @@ export default function Settings() {
 
   // ── Actions ───────────────────────────────────────────────────────────────────
   async function createInvestorLink() {
-    if (!newLink.label.trim() || saving) return;
-    const userId = pb.authStore.record?.id;
-    if (!userId) return;
+  if (!newLink.label.trim() || saving) return;
+  if (!pb.authStore.isValid) return;
 
-    setSaving(true);
-    try {
-      const token   = crypto.randomUUID();
-      const hashHex = await sha256Hex(token);
+  setSaving(true);
+  try {
+    await InvestorLinks.create({
+      label:      newLink.label,
+      showPnl:    newLink.showPnl,
+      showLotSize: newLink.showLotSize,
+    });
 
-      await pb.collection('investor_links').create({
-        user:          userId,
-        label:         newLink.label.trim(),
-        token:         token,
-        api_key_hash:  hashHex,
-        show_pnl:      newLink.showPnl,
-        show_lot_size: newLink.showLotSize,
-        is_active:     true,
-        views:         0,
-      });
-
-      setNewLink({ label: '', showPnl: true, showLotSize: false });
-      await loadInvestorLinks();
-    } catch (err) {
-      console.error('Failed to create investor link:', err);
-      setMsg('⚠ Failed to create investor link: ' + (err?.message ?? 'Unknown error'));
-      setTimeout(() => setMsg(''), 4000);
-    } finally {
-      setSaving(false);
-    }
+    setNewLink({ label: '', showPnl: true, showLotSize: false });
+    await loadInvestorLinks();
+  } catch (err) {
+    console.error('Failed to create investor link:', err);
+    setMsg('⚠ ' + (err?.message ?? 'Unknown error'));
+    setTimeout(() => setMsg(''), 4000);
+  } finally {
+    setSaving(false);
   }
+}
 
   async function toggleInvestorLink(id, isActive) {
     try {
@@ -126,37 +109,29 @@ export default function Settings() {
   }
 
   async function createMt5Account() {
-    if (!newMt5.label.trim() || !newMt5.mt5Login.trim() || saving) return;
-    const userId = pb.authStore.record?.id;
-    if (!userId) return;
+  if (!newMt5.label.trim() || !newMt5.mt5Login.trim() || saving) return;
+  if (!pb.authStore.isValid) return;
 
-    setSaving(true);
-    try {
-      const rawKey  = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
-      const hashHex = await sha256Hex(rawKey);
+  setSaving(true);
+  try {
+    const { apiKey } = await MT5Accounts.create({
+      label:    newMt5.label,
+      mt5Login: newMt5.mt5Login,
+      broker:   newMt5.broker,
+      server:   newMt5.server,
+    });
 
-      await pb.collection('mt5_accounts').create({
-        user:          userId,
-        account_label: newMt5.label.trim(),
-        mt5_login:     newMt5.mt5Login.trim(),
-        broker:        newMt5.broker.trim(),
-        server:        newMt5.server.trim(),
-        api_key_hash:  hashHex,
-        is_active:     true,
-        sync_enabled:  true,
-      });
-
-      setGeneratedKey(rawKey);
-      setNewMt5({ label: '', mt5Login: '', broker: '', server: '' });
-      await loadMt5Accounts();
-    } catch (err) {
-      console.error('Failed to create MT5 account:', err);
-      setMsg('⚠ Failed to generate API key: ' + (err?.message ?? 'Unknown error'));
-      setTimeout(() => setMsg(''), 4000);
-    } finally {
-      setSaving(false);
-    }
+    setGeneratedKey(apiKey);
+    setNewMt5({ label: '', mt5Login: '', broker: '', server: '' });
+    await loadMt5Accounts();
+  } catch (err) {
+    console.error('Failed to create MT5 account:', err);
+    setMsg('⚠ Failed to generate API key: ' + (err?.message ?? 'Unknown error'));
+    setTimeout(() => setMsg(''), 4000);
+  } finally {
+    setSaving(false);
   }
+}
 
   async function removeMt5Account(id) {
     try {
