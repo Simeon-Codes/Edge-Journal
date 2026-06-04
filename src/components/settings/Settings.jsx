@@ -108,47 +108,38 @@ export default function Settings() {
           </div>
         </Card>
       )}
+	  const [newLink, setNewLink] = useState({ label: '', showPnl: true, showLotSize: false });
+	  const [investorLinks, setInvestorLinks] = useState([]);
+	  const [saving, setSaving] = useState(false);
+	  const [copied, setCopied] = useState(null);
+	  
+	  async function loadInvestorLinks() {
+		  try {
+			  const records = await pb.collection('investor_links').getFullList({
+				  filter: `user = "${pb.authStore.record.id}"`,
+				  sort: '-created',
+				  });
+				  setInvestorLinks(records);
+				  } catch (err) {
+					  console.error('Failed to load investor links', err);
+					  }
+					  }
+					  useEffect(() => {
+						  loadInvestorLinks();
+						  }, []);
 
-      // ── State (add these alongside your other useState hooks at the top of Settings()) ──
-const [newLink, setNewLink] = useState({ label: '', showPnl: true, showLotSize: false });
-const [investorLinks, setInvestorLinks] = useState([]);
-const [saving, setSaving] = useState(false);
-const [copied, setCopied] = useState(null);
-
-// ── Helper: load all investor links for this user ──
-async function loadInvestorLinks() {
-  try {
-    const records = await pb.collection('investor_links').getFullList({
-      filter: `user = "${pb.authStore.record.id}"`,
-      sort: '-created',
-    });
-    setInvestorLinks(records);
-  } catch (err) {
-    console.error('Failed to load investor links', err);
-  }
-}
-
-// ── Load on mount ──
-useEffect(() => {
-  loadInvestorLinks();
-}, []);
-
-// ── Create investor link ──
 async function createInvestorLink() {
   if (!newLink.label || saving) return;
   setSaving(true);
   try {
-    // 1. Generate a raw random token (this is what goes in the shareable URL)
     const token = crypto.randomUUID();
 
-    // 2. SHA-256 hash it — only the hash is stored in the DB
     const msgBuffer = new TextEncoder().encode(token);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashHex = Array.from(new Uint8Array(hashBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    // 3. Save to PocketBase
     await pb.collection('investor_links').create({
       user:         pb.authStore.record.id,
       label:        newLink.label.trim(),
@@ -160,7 +151,6 @@ async function createInvestorLink() {
       views:        0,
     });
 
-    // 4. Reset form and reload list
     setNewLink({ label: '', showPnl: true, showLotSize: false });
     await loadInvestorLinks();
   } catch (err) {
@@ -171,14 +161,12 @@ async function createInvestorLink() {
   }
 }
 
-// ── Copy to clipboard ──
 async function copyToClipboard(text, id) {
   await navigator.clipboard.writeText(text);
   setCopied(id);
   setTimeout(() => setCopied(null), 2000);
 }
 
-// ── InvestorLinks helpers ──
 const InvestorLinks = {
   getShareUrl: (token) =>
     `${window.location.origin}/investor?token=${token}`,
