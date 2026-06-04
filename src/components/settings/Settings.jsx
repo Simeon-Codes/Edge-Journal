@@ -22,6 +22,7 @@ export default function Settings() {
   const [saving, setSaving]     = useState(false);
   const [msg, setMsg]           = useState('');
   const [copied, setCopied]     = useState('');
+  const [generatedKey, setGeneratedKey] = useState(null);
 
  useEffect(() => {
   if (tab === 'investor' && pb.authStore.isValid) loadInvestorLinks();
@@ -90,48 +91,8 @@ const loadInvestorLinks = async () => {
     { id: 'billing',    label: '$ Billing'     },
     { id: 'display',    label: '◈ Display'     },
   ];
-
-  return (
-    <div style={{ maxWidth: 700 }}>
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: `1px solid ${t.border}`, paddingBottom: 0 }}>
-        {TABS.map(tb => (
-          <button key={tb.id} onClick={() => setTab(tb.id)} style={{ padding: '9px 16px', background: 'none', border: 'none', borderBottom: tab === tb.id ? `2px solid ${t.accent}` : '2px solid transparent', color: tab === tb.id ? t.accent : t.textMuted, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: tab === tb.id ? 700 : 400, marginBottom: -1 }}>
-            {tb.label}
-          </button>
-        ))}
-      </div>
-
-      {msg && <div style={{ background: t.accentDim, border: `1px solid ${t.accentBorder}`, color: t.accent, borderRadius: 8, padding: '10px 14px', fontSize: 12, marginBottom: 14 }}>{msg}</div>}
-
-      {/* ── Account tab ─────────────────────────────────────────────────── */}
-      {tab === 'account' && (
-        <Card t={t}>
-          <SectionTitle t={t}>Account Info</SectionTitle>
-          <Row t={t} label="Email">{user?.email}</Row>
-          <Row t={t} label="Display Name">{profile?.display_name}</Row>
-          <Row t={t} label="Member Since">{user?.created?.slice(0,10)}</Row>
-          <Row t={t} label="Account ID"><span style={{ fontSize: 10, color: t.textMuted }}>{user?.id}</span></Row>
-          <SectionTitle t={t} style={{ marginTop: 20 }}>Subscription</SectionTitle>
-          <Row t={t} label="Current Tier">
-            <span style={{ color: TIER_COLORS[tier], fontWeight: 800 }}>Tier {tier} — {TIER_PRICES[tier]}</span>
-          </Row>
-          <Row t={t} label="Status">
-            <span style={{ color: subscriptionStatus === 'active' ? t.accent : t.yellow, textTransform: 'capitalize' }}>{subscriptionStatus}</span>
-          </Row>
-          <Row t={t} label="Daily Limits">
-            {TIER_LIMITS[tier]?.trades} trades · {TIER_LIMITS[tier]?.lots} lots
-          </Row>
-          <div style={{ marginTop: 12, padding: 12, background: t.redDim, border: `1px solid ${t.red}30`, borderRadius: 8 }}>
-            <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>DANGER ZONE</div>
-            <button style={{ padding: '8px 16px', background: 'none', border: `1px solid ${t.red}60`, borderRadius: 8, color: t.red, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Delete Account
-            </button>
-          </div>
-        </Card>
-      )}
-	  
-	  async function loadInvestorLinks() {
+  
+  async function loadInvestorLinks() {
 		  try {
 			  const records = await pb.collection('investor_links').getFullList({
 				  filter: `user = "${pb.authStore.record.id}"`,
@@ -226,6 +187,47 @@ async function createMt5Account() {
     setSaving(false);
   }
 }
+
+  return (
+    <div style={{ maxWidth: 700 }}>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: `1px solid ${t.border}`, paddingBottom: 0 }}>
+        {TABS.map(tb => (
+          <button key={tb.id} onClick={() => setTab(tb.id)} style={{ padding: '9px 16px', background: 'none', border: 'none', borderBottom: tab === tb.id ? `2px solid ${t.accent}` : '2px solid transparent', color: tab === tb.id ? t.accent : t.textMuted, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', fontWeight: tab === tb.id ? 700 : 400, marginBottom: -1 }}>
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
+      {msg && <div style={{ background: t.accentDim, border: `1px solid ${t.accentBorder}`, color: t.accent, borderRadius: 8, padding: '10px 14px', fontSize: 12, marginBottom: 14 }}>{msg}</div>}
+
+      {/* ── Account tab ─────────────────────────────────────────────────── */}
+      {tab === 'account' && (
+        <Card t={t}>
+          <SectionTitle t={t}>Account Info</SectionTitle>
+          <Row t={t} label="Email">{user?.email}</Row>
+          <Row t={t} label="Display Name">{profile?.display_name}</Row>
+          <Row t={t} label="Member Since">{user?.created?.slice(0,10)}</Row>
+          <Row t={t} label="Account ID"><span style={{ fontSize: 10, color: t.textMuted }}>{user?.id}</span></Row>
+          <SectionTitle t={t} style={{ marginTop: 20 }}>Subscription</SectionTitle>
+          <Row t={t} label="Current Tier">
+            <span style={{ color: TIER_COLORS[tier], fontWeight: 800 }}>Tier {tier} — {TIER_PRICES[tier]}</span>
+          </Row>
+          <Row t={t} label="Status">
+            <span style={{ color: subscriptionStatus === 'active' ? t.accent : t.yellow, textTransform: 'capitalize' }}>{subscriptionStatus}</span>
+          </Row>
+          <Row t={t} label="Daily Limits">
+            {TIER_LIMITS[tier]?.trades} trades · {TIER_LIMITS[tier]?.lots} lots
+          </Row>
+          <div style={{ marginTop: 12, padding: 12, background: t.redDim, border: `1px solid ${t.red}30`, borderRadius: 8 }}>
+            <div style={{ fontSize: 11, color: t.textMuted, marginBottom: 8 }}>DANGER ZONE</div>
+            <button style={{ padding: '8px 16px', background: 'none', border: `1px solid ${t.red}60`, borderRadius: 8, color: t.red, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Delete Account
+            </button>
+          </div>
+        </Card>
+      )}
+	  
       {/* ── MT5 tab ─────────────────────────────────────────────────────── */}
       {tab === 'mt5' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -262,7 +264,6 @@ async function createMt5Account() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1, background: t.bg, border: `1px solid ${t.yellow}40`, borderRadius: 8, padding: '10px 12px', fontFamily: 'monospace', fontSize: 12, color: t.textStrong, wordBreak: 'break-all' }}>
                   {generatedKey}
-				  const [generatedKey, setGeneratedKey] = useState(null);
                 </div>
                 <button onClick={() => copyToClipboard(generatedKey, 'key')} style={{ ...primaryBtn(t), padding: '10px 14px' }}>
                   {copied === 'key' ? '✓' : 'Copy'}
