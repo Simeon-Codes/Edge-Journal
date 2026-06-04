@@ -23,14 +23,25 @@ export default function Settings() {
   const [msg, setMsg]           = useState('');
   const [copied, setCopied]     = useState('');
 
-  useEffect(() => {
-    if (tab === 'investor') loadInvestorLinks();
-    if (tab === 'mt5')      loadMt5Accounts();
-  }, [tab]);
+ useEffect(() => {
+  if (tab === 'investor' && pb.authStore.isValid) loadInvestorLinks();
+  if (tab === 'mt5')                              loadMt5Accounts();
+}, [tab]);
 
-  const loadInvestorLinks = async () => {
-    try { const d = await InvestorLinks.list(); setInvestorLinks(d.items || []); } catch {}
-  };
+const loadInvestorLinks = async () => {
+  const userId = pb.authStore.record?.id;
+  if (!userId) return;
+
+  try {
+    const records = await pb.collection('investor_links').getFullList({
+      filter: `user = "${userId}"`,
+      sort: '-created',
+    });
+    setInvestorLinks(records);
+  } catch (err) {
+    console.error('Failed to load investor links', err);
+  }
+};
   const loadMt5Accounts = async () => {
     try { const d = await MT5Accounts.list(); setMt5Accounts(d.items || []); } catch {}
   };
