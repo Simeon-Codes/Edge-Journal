@@ -119,10 +119,6 @@ const loadInvestorLinks = async () => {
           </div>
         </Card>
       )}
-	  const [newLink, setNewLink] = useState({ label: '', showPnl: true, showLotSize: false });
-	  const [investorLinks, setInvestorLinks] = useState([]);
-	  const [saving, setSaving] = useState(false);
-	  const [copied, setCopied] = useState(null);
 	  
 	  async function loadInvestorLinks() {
 		  try {
