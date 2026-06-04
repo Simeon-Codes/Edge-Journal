@@ -28,45 +28,7 @@ export default function Settings() {
   if (tab === 'mt5')                              loadMt5Accounts();
 }, [tab]);
 
-const loadInvestorLinks = async () => {
-  const userId = pb.authStore.record?.id;
-  if (!userId) return;
-
-  try {
-    const records = await pb.collection('investor_links').getFullList({
-      filter: `user = "${userId}"`,
-      sort: '-created',
-    });
-    setInvestorLinks(records);
-  } catch (err) {
-    console.error('Failed to load investor links', err);
-  }
-};
-  const loadMt5Accounts = async () => {
-  const userId = pb.authStore.record?.id;
-  if (!userId) return;
-
-  try {
-    const records = await pb.collection('mt5_accounts').getFullList({
-      filter: `user = "${userId}"`,
-      sort: '-created',
-    });
-    setMt5Accounts(records);
-  } catch (err) {
-    console.error('Failed to load MT5 accounts', err);
-  }
-};
-
-
-  const TABS = [
-    { id: 'account',    label: '◉ Account'    },
-    { id: 'investor',   label: '◎ Investor'   },
-    { id: 'mt5',        label: '⟳ MT5 Sync'   },
-    { id: 'billing',    label: '$ Billing'     },
-    { id: 'display',    label: '◈ Display'     },
-  ];
-  
-  async function loadInvestorLinks() {
+async function loadInvestorLinks() {
 		  try {
 			  const records = await pb.collection('investor_links').getFullList({
 				  filter: `user = "${pb.authStore.record.id}"`,
@@ -161,6 +123,28 @@ async function createMt5Account() {
     setSaving(false);
   }
 }
+  const loadMt5Accounts = async () => {
+  const userId = pb.authStore.record?.id;
+  if (!userId) return;
+
+  try {
+    const records = await pb.collection('mt5_accounts').getFullList({
+      filter: `user = "${userId}"`,
+      sort: '-created',
+    });
+    setMt5Accounts(records);
+  } catch (err) {
+    console.error('Failed to load MT5 accounts', err);
+  }
+};
+
+  const TABS = [
+    { id: 'account',    label: '◉ Account'    },
+    { id: 'investor',   label: '◎ Investor'   },
+    { id: 'mt5',        label: '⟳ MT5 Sync'   },
+    { id: 'billing',    label: '$ Billing'     },
+    { id: 'display',    label: '◈ Display'     },
+  ];
 
   return (
     <div style={{ maxWidth: 700 }}>
