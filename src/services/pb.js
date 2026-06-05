@@ -283,22 +283,25 @@ export const InvestorLinks = {
   },
 
   async create({ label, showPnl = true, showLotSize = false, expiresAt = null }) {
-    const user = pb.authStore.record;
-    if (!user) throw new Error('Not authenticated');
+  const user = pb.authStore.record;
+  if (!user) throw new Error('Not authenticated');
 
-    const token = generateSecureToken(32);
+  const token = generateSecureToken(32);
 
-    // All bool fields sent explicitly as true/false — PocketBase required:true
-    // fields reject undefined or missing values with a 400 error.
-    const payload = {
-      user:          user.id,
-      token,
-      label:         sanitise(label, 60),
-      is_active:     true,
-      views:         1,  // PocketBase rejects 0 for required number fields (treats as blank)
-      show_pnl:      showPnl  === true || showPnl  === 'true'  ? true : false,
-      show_lot_size: showLotSize === true || showLotSize === 'true' ? true : false,
-    };
+  // Hash the token client-side — hook is not involved for investor links
+  const buf     = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  const hashHex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const payload = {
+    user:          user.id,
+    token,
+    api_key_hash:  hashHex,   // ← was missing entirely
+    label:         sanitise(label, 60),
+    is_active:     true,
+    views:         1,
+    show_pnl:      showPnl === true || showPnl === 'true' ? true : false,
+    show_lot_size: showLotSize === true || showLotSize === 'true' ? true : false,
+  };
     // Only include optional date if provided — sending null to a date field
     // can cause schema validation errors in some PocketBase versions
     if (expiresAt) payload.expires_at = expiresAt;
