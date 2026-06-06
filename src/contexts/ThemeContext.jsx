@@ -32,11 +32,11 @@ export const THEMES = {
   // Light mode: clean white, MT5 signature blue (#1848cc) as the brand accent
   light: {
     name: 'light',
-    bg:          '#f4f7fc',   // MT5-style light blue-gray background
-    bgCard:      '#ffffff',
+    bg:          '#FFFFF0',   // MT5-style light blue-gray background
+    bgCard:      '#E5E4E2',
     bgInput:     '#f8f9fd',
     bgHover:     '#edf1fa',
-    border:      '#dde3f0',
+    border:      '#E5E4E2',
     borderHover: '#c0cbe8',
     text:        '#1a2240',   // deep navy text — matches MT5 dark text
     textMuted:   '#6b7499',
