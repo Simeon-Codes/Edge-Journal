@@ -58,15 +58,17 @@ export const THEMES = {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [preference, setPreference] = useState(() =>
-    localStorage.getItem('edge_theme') || 'system'
-  );
-
+  const [preference, setPreference] = useState(() => {
+  const stored = localStorage.getItem('edge_theme');
+  return ['dark', 'light', 'system'].includes(stored) ? stored : 'system';
+});
+  
   const getSystemTheme = () =>
     window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
   const resolvedName = preference === 'system' ? getSystemTheme() : preference;
-  const theme = { ...THEMES[resolvedName], preference, resolvedName };
+  const resolved = THEMES[resolvedName] ?? THEMES['dark'];
+  const theme = { ...resolved, preference, resolvedName };
 
   // Listen to system preference changes
   useEffect(() => {
