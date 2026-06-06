@@ -94,6 +94,18 @@ export default function Settings() {
     }
   }
 
+  // FIX: was missing in Settings — present in InvestorView. Now harmonized.
+  async function deleteInvestorLink(id) {
+    try {
+      await InvestorLinks.delete(id);
+      setInvestorLinks(prev => prev.filter(l => l.id !== id));
+    } catch (err) {
+      console.error('Failed to delete investor link:', err);
+      setMsg('⚠ Failed to delete link: ' + (err?.message ?? 'Unknown error'));
+      setTimeout(() => setMsg(''), 5000);
+    }
+  }
+
   async function createMt5Account() {
     if (!newMt5.label.trim() || !newMt5.mt5Login.trim() || saving) return;
     if (!pb.authStore.isValid) return;
@@ -250,17 +262,25 @@ export default function Settings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ color: t.textStrong, fontWeight: 700 }}>{link.label || 'Unnamed Link'}</div>
+                  {/* FIX: show_lot_size was missing here — now matches InvestorView */}
                   <div style={{ fontSize: 10, color: t.textMuted, marginTop: 3 }}>
-                    {link.views ?? 0} views · {link.show_pnl ? 'P&L visible' : 'P&L hidden'}
+                    {link.views ?? 0} views · {link.show_pnl ? 'P&L visible' : 'P&L hidden'} · {link.show_lot_size ? 'Lots visible' : 'Lots hidden'}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <StatusBadge active={link.is_active} t={t} />
                   <button
                     onClick={() => toggleInvestorLink(link.id, !link.is_active)}
                     style={{ fontSize: 11, padding: '4px 10px', background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: 6, color: t.textMuted, cursor: 'pointer', fontFamily: 'inherit' }}
                   >
                     {link.is_active ? 'Disable' : 'Enable'}
+                  </button>
+                  {/* FIX: delete button was missing in Settings — now matches InvestorView */}
+                  <button
+                    onClick={() => deleteInvestorLink(link.id)}
+                    style={{ fontSize: 11, padding: '4px 10px', background: t.redDim, border: `1px solid ${t.red}30`, borderRadius: 6, color: t.red, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Delete
                   </button>
                 </div>
               </div>
@@ -276,6 +296,11 @@ export default function Settings() {
                   {copied === link.id ? '✓ Copied' : 'Copy'}
                 </button>
               </div>
+              {link.last_viewed && (
+                <div style={{ fontSize: 10, color: t.textDim, marginTop: 6 }}>
+                  Last viewed: {new Date(link.last_viewed).toLocaleString()}
+                </div>
+              )}
             </Card>
           ))}
         </div>
