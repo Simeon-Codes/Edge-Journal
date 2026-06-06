@@ -53,8 +53,8 @@ input bool     VerboseLogging   = false;    // Show detailed HTTP logs
 //─────────────────────────────────────────────────────────────────────────────
 // POCKETBASE COLLECTION PATHS  (relative to /api/collections/)
 //─────────────────────────────────────────────────────────────────────────────
-#define COL_TRADES      "/trades/records"
-#define COL_HEARTBEATS  "/heartbeats/records"
+#define COL_TRADES      "/mt5_trades/records"
+#define COL_HEARTBEATS  "/mt5_heartbeats/records"
 #define COL_EVENTS      "/events/records"
 #define COL_SYNC_STATE  "/sync_state/records"
 
