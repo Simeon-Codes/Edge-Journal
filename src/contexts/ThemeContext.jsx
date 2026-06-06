@@ -59,15 +59,15 @@ export const THEMES = {
 
 export const ThemeProvider = ({ children }) => {
   const [preference, setPreference] = useState(() => {
-  const stored = localStorage.getItem('edge_theme');
-  return ['dark', 'light', 'system'].includes(stored) ? stored : 'system';
-});
-  
+    const stored = localStorage.getItem('edge_theme');
+    return ['dark', 'light', 'system'].includes(stored) ? stored : 'system';
+  });
+
   const getSystemTheme = () =>
     window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
   const resolvedName = preference === 'system' ? getSystemTheme() : preference;
-  const resolved = THEMES[resolvedName] ?? THEMES['dark'];
+  const resolved = THEMES[resolvedName] ?? THEMES['dark']; // ← never undefined
   const theme = { ...resolved, preference, resolvedName };
 
   // Listen to system preference changes
