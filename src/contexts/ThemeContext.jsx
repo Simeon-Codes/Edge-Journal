@@ -6,7 +6,7 @@ export const THEMES = {
   // Dark mode: deep charcoal background, MT5-style electric blue accent
   dark: {
     name: 'dark',
-    bg:          '#1a1d26',   // dark gray — not pure black, easier on eyes
+    bg:          '#1A1A1A',   // dark gray — not pure black, easier on eyes
     bgCard:      '#20232f',   // slightly lifted card surface
     bgInput:     '#161820',   // sunken input fields
     bgHover:     '#282c3d',   // hover highlight
@@ -32,7 +32,7 @@ export const THEMES = {
   // Light mode: clean white, MT5 signature blue (#1848cc) as the brand accent
   light: {
     name: 'light',
-    bg:          '#FFFFF0',   // MT5-style light blue-gray background
+    bg:          '#FAF0E6',   // MT5-style light blue-gray background
     bgCard:      '#E5E4E2',
     bgInput:     '#f8f9fd',
     bgHover:     '#edf1fa',
@@ -41,7 +41,7 @@ export const THEMES = {
     text:        '#1a2240',   // deep navy text — matches MT5 dark text
     textMuted:   '#6b7499',
     textDim:     '#c0c8e0',
-    textStrong:  '#0e1533',
+    textStrong:  '#1A1A1A',
     accent:      '#1848cc',   // MT5 signature blue
     accentDim:   '#1848cc15',
     accentBorder:'#1848cc40',
