@@ -52,7 +52,7 @@ routerAdd("GET", "/api/investor/{token}", (e) => {
     try {
         const tradeRecords = $app.findRecordsByFilter(
             "trades",
-            "user = {:uid}",
+            "users = {:uid}",
             "-trade_date",
             500,
             0,
