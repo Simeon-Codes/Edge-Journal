@@ -175,8 +175,8 @@ export const Profiles = {
     // filter causes a 400 on PocketBase v0.23+.
     const query = async () => {
       const res = await pb.collection('profiles').getList(1, 1, {
-        sort: '-created',
-      });
+  sort: '-id',
+  });
       return res.items[0] || null;
     };
 
@@ -278,8 +278,8 @@ export const InvestorLinks = {
   async list() {
     // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('investor_links').getList(1, 50, {
-      sort: '-created',
-    });
+  sort: '-id',
+  });
   },
 
   async create({ label, showPnl = true, showLotSize = false, expiresAt = null }) {
@@ -336,7 +336,7 @@ export const MT5Accounts = {
   async list() {
     // listRule (AUTH_OWN) scopes to current user — no client filter needed
     return pb.collection('mt5_accounts').getList(1, 50, {
-      sort: '-created',
+      sort: '-id',
     });
   },
 
