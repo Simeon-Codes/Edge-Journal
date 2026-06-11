@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GRADE_COLORS, SESSION_COLORS } from '../../utils/constants.js';
 import { PB_URL } from '../../config/env';
+import { API_BASE } from '../../services/pb.js';
 
 const pnlColor = (v) => Number(v) > 0 ? '#00e5a0' : Number(v) < 0 ? '#ff4d6d' : '#8a8fa8';
 
@@ -21,7 +22,7 @@ export default function InvestorPage({ token }) {
     // /api/investor/:token that looks up the investor_links collection,
     // validates is_active, increments views, and returns trades + display meta.
     // If this route returns 404 for all tokens, the custom hook is not deployed.
-    fetch(`${PB_URL}/api/investor/${token.trim()}`)
+    const res = await fetch(`${API_BASE}/api/investor/${token}`);
       .then(r => {
         if (r.ok) return r.json();
         // FIX: more descriptive error messages per status code

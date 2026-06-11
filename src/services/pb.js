@@ -35,7 +35,9 @@ if (!PB_URL) {
 // ── Single source-of-truth client ─────────────────────────────────────────────
 // One instance shared across the whole app. The SDK keeps auth state internally
 // in pb.authStore — no manual token storage needed.
-export const pb = new PocketBase(PB_URL);
+const cleanUrl = PB_URL.endsWith('/') ? PB_URL.slice(0, -1) : PB_URL;
+export const pb = new PocketBase(cleanUrl);
+export const API_BASE = cleanUrl; // export for use in fetch calls
 
 // Disable the SDK's auto-cancel so rapid pagination calls don't cancel each other
 pb.autoCancellation(false);
