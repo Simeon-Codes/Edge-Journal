@@ -10,32 +10,32 @@ export default function InvestorPage({ token }) {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
 
-  useEffect(() => {
-    // FIX: token guard tightened — reject empty string and whitespace-only values
-    if (!token || !token.trim()) {
-      setError('Invalid or missing investor link.');
-      setLoading(false);
-      return;
-    }
+	  useEffect(() => {
+	  // FIX: token guard tightened — reject empty string and whitespace-only values
+	  if (!token || !token.trim()) {
+		setError('Invalid or missing investor link.');
+		setLoading(false);
+		return;
+	  }
 
-    // NOTE: This endpoint requires a custom PocketBase hook or middleware at
-    // /api/investor/:token that looks up the investor_links collection,
-    // validates is_active, increments views, and returns trades + display meta.
-    // If this route returns 404 for all tokens, the custom hook is not deployed.
-    const res = await fetch(`${API_BASE}/api/investor/${token}`);
-      .then(r => {
-        if (r.ok) return r.json();
-        // FIX: more descriptive error messages per status code
-        if (r.status === 404) return Promise.reject('This investor link does not exist or has been deleted.');
-        if (r.status === 403) return Promise.reject('This investor link has been disabled by the owner.');
-        return r.json().then(e => Promise.reject(e.error || e.message || 'Failed to load data.'));
-      })
-      .then(d => { setData(d); setLoading(false); })
-      .catch(e => {
-        setError(typeof e === 'string' ? e : 'Link not found or expired.');
-        setLoading(false);
-      });
-  }, [token]);
+	  // NOTE: This endpoint requires a custom PocketBase hook or middleware at
+	  // /api/investor/:token that looks up the investor_links collection,
+	  // validates is_active, increments views, and returns trades + display meta.
+	  // If this route returns 404 for all tokens, the custom hook is not deployed.
+	  fetch(`${API_BASE}/api/investor/${token}`)
+		.then(r => {
+		  if (r.ok) return r.json();
+		  // FIX: more descriptive error messages per status code
+		  if (r.status === 404) return Promise.reject('This investor link does not exist or has been deleted.');
+		  if (r.status === 403) return Promise.reject('This investor link has been disabled by the owner.');
+		  return r.json().then(e => Promise.reject(e.error || e.message || 'Failed to load data.'));
+		})
+		.then(d => { setData(d); setLoading(false); })
+		.catch(e => {
+		  setError(typeof e === 'string' ? e : 'Link not found or expired.');
+		  setLoading(false);
+		});
+	}, [token]);
 
   const dark = {
     bg: '#0c0e1a', bgCard: '#0e1120', border: '#1e2240', text: '#c8cde8',
