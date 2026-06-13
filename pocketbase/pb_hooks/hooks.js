@@ -108,7 +108,7 @@ routerAdd("POST", "/api/mt5/sync", (e) => {
     const rows = $app.findRecordsByFilter(
       "mt5_accounts",
       "api_key_hash = {:h} && is_active = true && sync_enabled = true",
-      "-created", 1, 0,
+      "-id", 1, 0,
       { h: keyHash }
     );
     if (!rows || !rows.length) return e.json(401, { error: "Invalid API key" });
@@ -154,7 +154,7 @@ routerAdd("POST", "/api/mt5/sync", (e) => {
 
         const existing = $app.findRecordsByFilter(
           "trades", "mt5_ticket = {:tk} && user = {:uid}",
-          "-created", 1, 0,
+          "-id", 1, 0,
           { tk: ticket, uid: userId }
         );
         if (existing && existing.length) { skipped++; continue; }
@@ -207,7 +207,7 @@ routerAdd("POST", "/api/mt5/sync", (e) => {
     try {
       const existing = $app.findRecordsByFilter(
         "trades", "mt5_ticket = {:tk} && user = {:uid}",
-        "-created", 1, 0,
+        "-id", 1, 0,
         { tk: ticket, uid: userId }
       );
       const col   = $app.findCollectionByNameOrId("trades");
@@ -262,13 +262,25 @@ routerAdd("GET", "/api/investor/{token}", (e) => {
   if (rateLimit("inv:" + ip, 30, 60000)) return e.json(429, { error: "Too many requests" });
 
   const token = san(e.request.pathValue("token") || "", 128);
+console.log("INVESTOR TOKEN:", token);
+
+	const links = $app.findRecordsByFilter(
+	  "investor_links",
+	  "token = {:tok} && is_active = true",
+	  "-id",
+	  1,
+	  0,
+	  { tok: token }
+	);
+
+	console.log("LINK COUNT:", links ? links.length : 0);
   if (!token || token.length < 16) return e.json(400, { error: "Invalid token" });
 
   try {
     const links = $app.findRecordsByFilter(
       "investor_links",
       "token = {:tok} && is_active = true",
-      "-created", 1, 0,
+      "-id", 1, 0,
       { tok: token }
     );
     if (!links || !links.length) return e.json(404, { error: "Link not found" });
@@ -284,7 +296,7 @@ routerAdd("GET", "/api/investor/{token}", (e) => {
     var displayName = "Trader";
     try {
       const profiles = $app.findRecordsByFilter(
-        "profiles", "user = {:uid}", "-created", 1, 0, { uid }
+        "profiles", "user = {:uid}", "-id", 1, 0, { uid }
       );
       if (profiles && profiles.length) displayName = profiles[0].get("display_name") || "Trader";
     } catch (err) { /* non-fatal */ }
@@ -371,7 +383,7 @@ routerAdd("POST", "/api/ai-coach", (e) => {
   var userTier = 0;
   try {
     const profiles = $app.findRecordsByFilter(
-      "profiles", "user = {:uid}", "-created", 1, 0, { uid: userId }
+      "profiles", "user = {:uid}", "-id", 1, 0, { uid: userId }
     );
     if (profiles && profiles.length) userTier = Number(profiles[0].get("tier")) || 0;
   } catch (err) { /* allow, will fail tier check below */ }
@@ -528,7 +540,7 @@ routerAdd("POST", "/api/stripe/webhook", (e) => {
     const tier    = TIER_MAP[priceId] || 1;
     try {
       const rows = $app.findRecordsByFilter(
-        "profiles", "stripe_customer_id = {:cid}", "-created", 1, 0, { cid }
+        "profiles", "stripe_customer_id = {:cid}", "-id", 1, 0, { cid }
       );
       if (rows && rows.length) {
         rows[0].set("tier",                   tier);
@@ -545,7 +557,7 @@ routerAdd("POST", "/api/stripe/webhook", (e) => {
       const cid = String(sub.customer || "");
       try {
         const rows = $app.findRecordsByFilter(
-          "profiles", "stripe_customer_id = {:cid}", "-created", 1, 0, { cid }
+          "profiles", "stripe_customer_id = {:cid}", "-id", 1, 0, { cid }
         );
         if (rows && rows.length) {
           rows[0].set("tier",               1);
